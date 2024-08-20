@@ -1,0 +1,11 @@
+[package]
+name = "firecracker"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+robot_serial = { git = "ssh://git@github.com/EMU5-Robotics/transport.git", rev = "6cd42ff026f0bb21a8ede11f1677d3c4215980a1" }
+postcard = "1.0.9"
+log = "0.4.22"
+env_logger = "0.11.5"
+plotly = "0.9.0"
