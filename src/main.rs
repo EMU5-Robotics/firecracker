@@ -1,66 +1,79 @@
-use robot_serial::protocol;
+use robot_serial::protocol::{self, *};
+
+// cartesion coordinate space
+
+pub struct Drivebase<const N: usize> {
+    left: [(usize, bool); N],
+    right: [(usize, bool); N],
+}
+
+impl<const N: usize> Drivebase<N> {
+    pub fn new(left: [(usize, bool); N], right: [(usize, bool); N]) -> Self {
+        Self { left, right }
+    }
+    pub fn write_powers(&self, forward: f64, rotate: f64, brain_pkt: &mut ToBrain) {
+        let left_side = forward - rotate;
+        let right_side = forward + rotate;
+
+        let map_voltage = |power: f64, rev: bool| -> f64 {
+            let power = 0.3 * (power * 12.0).clamp(-12.0, 12.0);
+            if rev {
+                -power
+            } else {
+                power
+            }
+        };
+
+        for (idx, rev) in &self.left {
+            brain_pkt.set_motors[*idx] = MotorControl::Voltage(map_voltage(left_side, *rev));
+        }
+        for (idx, rev) in &self.right {
+            brain_pkt.set_motors[*idx] = MotorControl::Voltage(map_voltage(right_side, *rev));
+        }
+    }
+}
 
 fn main() {
-    env_logger::init();
     let mut bm = robot_serial::BrainMediator::new().unwrap();
-    let mut motor_power = 0.0;
-    /*    let _ = bm
-        .try_write(&protocol::ToBrain::RequestControllerInfo)
-        .unwrap();
-    let _ = bm.try_write(&protocol::ToBrain::RequestDeviceInfo).unwrap();*/
     let mut write_brain = protocol::ToBrain::default();
     let mut brain_state = protocol::ToRobot::default();
+
+    let (mut forward, mut rotate) = (0.0, 0.0);
+
+    let drivebase = Drivebase::new(
+        [(0, true), (1, true), (2, true)],
+        [(10, false), (11, false), (12, false)],
+    );
     loop {
-        if let Ok(pkts) = bm.try_read() {
-            for pkt in pkts {
-                log::info!("{pkt:?}");
-                brain_state = pkt;
+        match bm.try_read() {
+            Ok(mut pkts) => {
+                if let Some(pkt) = pkts.pop() {
+                    if pkts.len() > 1 {
+                        log::warn!("BrainMediator::try_read read {} packets", pkts.len());
+                    }
+                    brain_state = pkt;
+                }
             }
-        } else {
-            log::warn!("AAAAA");
+            Err(e) => log::error!("BrainMediator::try_read returned: {e}"),
         }
 
         if let Some(ref controller) = brain_state.controller_state {
-            motor_power = controller.axis[0];
-        }
+            forward = controller.axis[1];
+            rotate = -controller.axis[2];
 
-        if let Some(ref device_list) = brain_state.device_list {
-            for (i, device) in device_list.smart_ports.iter().enumerate() {
-                if protocol::PortState::Motor == *device {
-                    write_brain.set_motors[i] = protocol::MotorControl::Voltage(
-                        12.0 * (i as f64 + 1.0) / 21.0 * motor_power,
-                    );
-                }
+            if controller.buttons & controller::A == controller::A {
+                write_brain.set_triports[0] = ConfigureAdiPort::DigitalHigh;
+                write_brain.set_triports[1] = ConfigureAdiPort::DigitalHigh;
+            } else if controller.buttons & controller::B == controller::B {
+                write_brain.set_triports[0] = ConfigureAdiPort::DigitalLow;
+                write_brain.set_triports[1] = ConfigureAdiPort::DigitalLow;
             }
         }
 
-        bm.try_write(&write_brain).unwrap();
+        drivebase.write_powers(forward, rotate, &mut write_brain);
+
+        if let Err(e) = bm.try_write(&write_brain) {
+            log::error!("Failed to write packet: {e}");
+        }
     }
-
-    /*loop {
-        if let Ok(pkts) = bm.try_read() {
-            for pkt in pkts {
-                println!("AAAAA");
-                match pkt {
-                    protocol::ToRobot::ControllerState(controller_state) => {
-                        motor_power = controller_state.axis[0];
-                    }
-                    protocol::ToRobot::DevicesList(devices_list) => {
-                        let mut arr = [protocol::MotorControl::default(); 21];
-                        for (i, device) in devices_list.smart_ports.iter().enumerate() {
-                            if protocol::PortState::Motor == *device {
-                                arr[i] = protocol::MotorControl::Voltage(
-                                    12.0 * (i as f64 + 1.0) / 21.0 * motor_power,
-                                );
-                            }
-                        }
-                        let _ = bm.try_write(&protocol::ToBrain::SetMotors(arr));
-                    }
-                    _ => {}
-                }
-            }
-        } else {
-            println!("FASFASFASF");
-        }
-    }*/
 }
