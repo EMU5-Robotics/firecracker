@@ -264,7 +264,7 @@ dependencies = [
  "rmp-serde",
  "serde",
  "smol",
- "thiserror",
+ "thiserror 1.0.69",
 ]
 
 [[package]]
@@ -463,9 +463,9 @@ checksum = "7943c866cc5cd64cbc25b2e01621d07fa8eb2a1a23160ee81ce38704e97b8ecf"
 
 [[package]]
 name = "libc"
-version = "0.2.164"
+version = "0.2.166"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "433bfe06b8c75da9b2e3fbea6e5329ff87748f0b144ef75306e674c3f6f7c13f"
+checksum = "c2ccc108bbc0b1331bd061864e7cd823c0cab660bbe6970e66e2c0614decde36"
 
 [[package]]
 name = "libudev"
@@ -619,7 +619,7 @@ dependencies = [
 [[package]]
 name = "protocol"
 version = "0.1.0"
-source = "git+ssh://git@github.com/EMU5-Robotics/transport.git?rev=3a55e13f218f72d73a440a803e5cc32e5db3413f#3a55e13f218f72d73a440a803e5cc32e5db3413f"
+source = "git+ssh://git@github.com/EMU5-Robotics/transport.git?rev=2959692120a1f0cbb655b6a66324d3a4a1cbe02c#2959692120a1f0cbb655b6a66324d3a4a1cbe02c"
 dependencies = [
  "postcard",
  "serde",
@@ -688,12 +688,13 @@ dependencies = [
 [[package]]
 name = "robot_serial"
 version = "0.1.0"
-source = "git+ssh://git@github.com/EMU5-Robotics/transport.git?rev=3a55e13f218f72d73a440a803e5cc32e5db3413f#3a55e13f218f72d73a440a803e5cc32e5db3413f"
+source = "git+ssh://git@github.com/EMU5-Robotics/transport.git?rev=2959692120a1f0cbb655b6a66324d3a4a1cbe02c#2959692120a1f0cbb655b6a66324d3a4a1cbe02c"
 dependencies = [
  "log",
  "postcard",
  "protocol",
  "serialport",
+ "thiserror 2.0.3",
 ]
 
 [[package]]
@@ -836,7 +837,16 @@ version = "1.0.69"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b6aaf5339b578ea85b50e080feb250a3e8ae8cfcdff9a461c9ec2904bc923f52"
 dependencies = [
- "thiserror-impl",
+ "thiserror-impl 1.0.69",
+]
+
+[[package]]
+name = "thiserror"
+version = "2.0.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c006c85c7651b3cf2ada4584faa36773bd07bac24acfb39f3c431b36d7e667aa"
+dependencies = [
+ "thiserror-impl 2.0.3",
 ]
 
 [[package]]
@@ -844,6 +854,17 @@ name = "thiserror-impl"
 version = "1.0.69"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "4fee6c4efc90059e10f81e6d42c60a18f76588c3d74cb83a0b242a2b6c7504c1"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn",
+]
+
+[[package]]
+name = "thiserror-impl"
+version = "2.0.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f077553d607adc1caf65430528a576c757a71ed73944b66ebb58ef2bbd243568"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -862,9 +883,9 @@ dependencies = [
 
 [[package]]
 name = "tracing-core"
-version = "0.1.32"
+version = "0.1.33"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c06d3da6113f116aaee68e4d601191614c9053067f9ab7f6edbcb161237daa54"
+checksum = "e672c95779cf947c5311f83787af4fa8fffd12fb27e4993211a84bdfd9610f9c"
 
 [[package]]
 name = "unescaper"
@@ -872,7 +893,7 @@ version = "0.1.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c878a167baa8afd137494101a688ef8c67125089ff2249284bd2b5f9bfedb815"
 dependencies = [
- "thiserror",
+ "thiserror 1.0.69",
 ]
 
 [[package]]

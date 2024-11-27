@@ -9,11 +9,11 @@ impl<const N: usize> Drivebase<N> {
         Self { left, right }
     }
     pub fn write_powers(&self, forward: f64, rotate: f64, brain_pkt: &mut ToBrain) {
-        let left_side = forward - rotate;
-        let right_side = forward + rotate;
+        let left_side = forward - (rotate * rotate) * rotate.signum();
+        let right_side = forward + (rotate * rotate) * rotate.signum();
 
         let map_voltage = |power: f64, rev: bool| -> f64 {
-            let power = 0.3 * (power * 12.0).clamp(-12.0, 12.0);
+            let power = 0.5 * (power * 12.0).clamp(-12.0, 12.0);
             if rev {
                 -power
             } else {
