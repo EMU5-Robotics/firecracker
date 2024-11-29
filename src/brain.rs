@@ -24,11 +24,15 @@ impl Brain {
         };
         log::info!("Connected to the brain");
 
+        // prompt a response from the brain
+        while let Err(_) = mediator.try_write(&ToBrain::default()) {}
+
         let first = loop {
             if let Ok(pkt) = mediator.try_read() {
                 break pkt.to_owned();
             }
         };
+        while let Err(_) = mediator.try_write(&ToBrain::default()) {}
 
         let second = loop {
             if let Ok(pkt) = mediator.try_read() {
@@ -38,7 +42,7 @@ impl Brain {
 
         let packet_buffer = [first, second];
         let controller = packet_buffer.clone().into();
-
+        while let Err(_) = mediator.try_write(&ToBrain::default()) {}
         (
             Self {
                 mediator,
@@ -59,12 +63,14 @@ impl Brain {
                 self.packet_buffer.swap(0, 1);
                 *controller = self.packet_buffer.clone().into();
             }
+            Err(robot_serial::Error::NoPacketRead) => {}
             Err(e) => {
                 if !self.failed_read {
                     log::warn!("First failed read due to: {e}");
                     self.failed_read = true;
                 }
             }
+            _ => {}
         }
         &self.packet_buffer[1]
     }

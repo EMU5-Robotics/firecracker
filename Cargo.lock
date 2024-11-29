@@ -619,7 +619,7 @@ dependencies = [
 [[package]]
 name = "protocol"
 version = "0.1.0"
-source = "git+ssh://git@github.com/EMU5-Robotics/transport.git?rev=2959692120a1f0cbb655b6a66324d3a4a1cbe02c#2959692120a1f0cbb655b6a66324d3a4a1cbe02c"
+source = "git+ssh://git@github.com/EMU5-Robotics/transport.git?rev=cfa47eaaa77c10f248cbfddd439637146ae914b2#cfa47eaaa77c10f248cbfddd439637146ae914b2"
 dependencies = [
  "postcard",
  "serde",
@@ -688,7 +688,7 @@ dependencies = [
 [[package]]
 name = "robot_serial"
 version = "0.1.0"
-source = "git+ssh://git@github.com/EMU5-Robotics/transport.git?rev=2959692120a1f0cbb655b6a66324d3a4a1cbe02c#2959692120a1f0cbb655b6a66324d3a4a1cbe02c"
+source = "git+ssh://git@github.com/EMU5-Robotics/transport.git?rev=cfa47eaaa77c10f248cbfddd439637146ae914b2#cfa47eaaa77c10f248cbfddd439637146ae914b2"
 dependencies = [
  "log",
  "postcard",

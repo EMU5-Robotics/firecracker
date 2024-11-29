@@ -1,5 +1,8 @@
 use robot_serial::protocol::*;
 
+const DEADZONE_THRESHOLD: f64 = 0.05;
+
+#[derive(Debug)]
 pub struct Controller {
     last: ControllerButtons,
     current: ControllerButtons,
@@ -14,10 +17,10 @@ impl From<[ToRobot; 2]> for Controller {
         ];
         // -128 should never be reported by first.axes[_]
         let axes = [
-            first.axis[0] as f64 / 127.0,
-            first.axis[1] as f64 / 127.0,
-            first.axis[2] as f64 / 127.0,
-            first.axis[3] as f64 / 127.0,
+            first.axis[0] as f64,
+            first.axis[1] as f64,
+            first.axis[2] as f64,
+            first.axis[3] as f64,
         ];
         Self {
             last: second.buttons,
@@ -29,16 +32,36 @@ impl From<[ToRobot; 2]> for Controller {
 
 impl Controller {
     pub fn lx(&self) -> f64 {
-        self.axes[0]
+        let out = self.axes[0];
+        if out.abs() < DEADZONE_THRESHOLD {
+            0.0
+        } else {
+            out
+        }
     }
     pub fn ly(&self) -> f64 {
-        self.axes[1]
+        let out = self.axes[1];
+        if out.abs() < DEADZONE_THRESHOLD {
+            0.0
+        } else {
+            out
+        }
     }
     pub fn rx(&self) -> f64 {
-        self.axes[2]
+        let out = self.axes[2];
+        if out.abs() < DEADZONE_THRESHOLD {
+            0.0
+        } else {
+            out
+        }
     }
     pub fn ry(&self) -> f64 {
-        self.axes[3]
+        let out = self.axes[3];
+        if out.abs() < DEADZONE_THRESHOLD {
+            0.0
+        } else {
+            out
+        }
     }
     // helper function to check if a button matching with a bit is activated
     // in ControllerButtons. This also checks if only a single bit is being

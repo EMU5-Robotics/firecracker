@@ -11,7 +11,11 @@ path = "src/big_robot.rs"
 name = "small"
 path = "src/small_robot.rs"
 
+[[bin]]
+name = "test"
+path = "src/testing.rs"
+
 [dependencies]
-robot_serial = { git = "ssh://git@github.com/EMU5-Robotics/transport.git", rev = "2959692120a1f0cbb655b6a66324d3a4a1cbe02c" }
+robot_serial = { git = "ssh://git@github.com/EMU5-Robotics/transport.git", rev = "cfa47eaaa77c10f248cbfddd439637146ae914b2" }
 communication = { git = "ssh://git@github.com/EMU5-Robotics/communication.git", rev = "02f0a275ff1b7758f70471fa28eccca304cd9a25" }
 log = "0.4.22"
