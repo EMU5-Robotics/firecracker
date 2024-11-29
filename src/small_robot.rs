@@ -12,8 +12,9 @@ fn main() {
     let (mut brain, mut controller) = brain::Brain::init();
 
     let drivebase = drivebase::Drivebase::new(
-        [(0, true), (1, true), (2, true)],
-        [(10, false), (11, false), (12, false)],
+        [(1, true), (2, true), (3, true)],
+        [(11, false), (12, false), (13, false)],
+        MotorControl::BrakeBrake,
     );
 
     loop {

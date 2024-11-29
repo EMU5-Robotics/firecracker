@@ -54,7 +54,7 @@ impl Brain {
             controller,
         )
     }
-    pub fn update_state(&mut self, controller: &mut Controller) -> &ToRobot {
+    pub fn update_state(&mut self, controller: &mut Controller) -> ToRobot {
         controller.update_no_change();
         match self.mediator.try_read() {
             Ok(pkt) => {
@@ -72,7 +72,7 @@ impl Brain {
             }
             _ => {}
         }
-        &self.packet_buffer[1]
+        self.packet_buffer[1].clone()
     }
     pub fn get_brain_pkt(&mut self) -> &mut ToBrain {
         &mut self.to_brain
