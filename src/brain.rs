@@ -24,15 +24,11 @@ impl Brain {
         };
         log::info!("Connected to the brain");
 
-        // prompt a response from the brain
-        while let Err(_) = mediator.try_write(&ToBrain::default()) {}
-
         let first = loop {
             if let Ok(pkt) = mediator.try_read() {
                 break pkt.to_owned();
             }
         };
-        while let Err(_) = mediator.try_write(&ToBrain::default()) {}
 
         let second = loop {
             if let Ok(pkt) = mediator.try_read() {
@@ -42,7 +38,6 @@ impl Brain {
 
         let packet_buffer = [first, second];
         let controller = packet_buffer.clone().into();
-        while let Err(_) = mediator.try_write(&ToBrain::default()) {}
         (
             Self {
                 mediator,
