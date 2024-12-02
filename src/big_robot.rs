@@ -7,9 +7,9 @@ use robot_serial::protocol::{controller::*, *};
 mod brain;
 mod controller;
 mod drivebase;
-mod drivebase_measurer;
 mod imu;
 mod odometry;
+mod path;
 mod pid;
 
 // cartesion coordinate space
@@ -22,10 +22,12 @@ fn main() {
         communication::Logger::try_init(RobotInfo::new("big robot", 0.705, 0.45), true).unwrap();
     let (mut brain, mut controller) = brain::Brain::init();
 
-    let drivebase = drivebase::Drivebase::new(
+    let mut drivebase = drivebase::Drivebase::new(
         [(19, true), (14, true), (17, true)],
         [(5, false), (4, false), (3, false)],
         MotorControl::BrakeBrake,
+        254.0,
+        75.0,
     );
 
     let mut imu = imu::Imu::new(7);
@@ -33,8 +35,9 @@ fn main() {
 
     let mut track_pid = false;
 
-    let mut drivebase_measurer = drivebase_measurer::DriveBaseMeasurer::new(75.0);
-    let mut odometry = odometry::Odometry::new(5);
+    //let mut drivebase_measurer = drivebase_measurer::DriveBaseMeasurer::new(75.0);
+    //let mut odometry = odometry::Odometry::new(5);
+    let mut odom = odometry::Odom::new([-400.0, -400.0], 90.0f64.to_radians(), &imu, &drivebase);
 
     let mut latch_close: i8 = 0;
 
@@ -44,17 +47,19 @@ fn main() {
 
         // update imu, odometry stuff
         imu.update(&pkt);
-        drivebase_measurer.update(&pkt, &drivebase);
-        odometry.update(imu.heading(), drivebase_measurer.get_distance());
+        drivebase.update(&pkt);
+        odom.update(&imu, &drivebase);
+        //drivebase_measurer.update(&pkt, &drivebase);
+        //odometry.update(imu.heading(), drivebase_measurer.get_distance());
 
         if just_updated {
             //log::info!("{:?}", pkt.encoder_state);
             log::info!("imu :{:?}", imu.heading());
-            log::info!("distance :{:?}", drivebase_measurer.get_avg_distance());
-            log::info!("x y :{:?}", odometry.get_xy());
+            //log::info!("distance :{:?}", drivebase_measurer.get_avg_distance());
+            //log::info!("x y :{:?}", odometry.get_xy());
             let _ = mediator.send_event(communication::packets::FromMain::Odometry(
-                odometry.get_xy(),
-                imu.heading(),
+                odom.pos(),
+                odom.heading(),
             ));
             log::info!("latch :{:?}", latch_close);
         }

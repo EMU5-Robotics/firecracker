@@ -16,6 +16,7 @@ fn main() {
         [(1, true), (2, true), (3, true)],
         [(11, false), (12, false), (13, false)],
         MotorControl::BrakeBrake,
+        150.0,
     );
 
     loop {

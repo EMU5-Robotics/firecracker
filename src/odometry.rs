@@ -4,7 +4,13 @@ use std::{
     time::{Duration, Instant},
 };
 
-#[derive(Debug)]
+use crate::{
+    drivebase::{self, Drivebase},
+    //drivebase_measurer::{self, DriveBaseMeasurer},
+    imu::Imu,
+};
+
+/*#[derive(Debug)]
 pub struct Odometry {
     x: f64,
     y: f64,
@@ -95,5 +101,86 @@ impl Odometry {
 
     pub fn get_xy(&self) -> [f64; 2] {
         return [self.x, self.y];
+    }
+}*/
+
+pub struct Odom {
+    start_pos: [f64; 2],
+    start_heading: f64,
+    pos: [f64; 2],
+    heading: f64,
+    last_heading: f64,
+    last_update: Instant,
+    last_distances: [f64; 2],
+}
+
+impl Odom {
+    const STRAIGHT_THRESHOLD: f64 = 0.5f64.to_radians();
+    const STRAIGHT_THRESHOLD_SIDE: f64 = 0.5f64.to_radians();
+    const UPDATE_RATE: Duration = Duration::from_millis(10);
+    pub fn new<const N: usize>(
+        start_pos: [f64; 2],
+        start_heading: f64,
+        imu: &Imu,
+        drivebase: &Drivebase<N>,
+    ) -> Self {
+        let heading = imu.heading();
+        Self {
+            start_pos,
+            start_heading,
+            pos: [0.0; 2],
+            heading,
+            last_heading: heading,
+            last_distances: drivebase.side_distances(),
+            last_update: Instant::now(),
+        }
+    }
+    pub fn update<const N: usize>(&mut self, imu: &Imu, drivebase: &Drivebase<N>) {
+        if self.last_update.elapsed() < Self::UPDATE_RATE {
+            return;
+        }
+
+        let [l, r] = drivebase.side_distances();
+        let [dl, dr] = [l - self.last_distances[0], r - self.last_distances[1]];
+        let theta = imu.heading();
+        let dtheta = theta - self.last_heading;
+
+        let rad = drivebase.radius();
+        let side_diff = r - l;
+
+        let side_threshold = Self::STRAIGHT_THRESHOLD * (2.0 * rad);
+        let local_dx;
+        let local_dy;
+        if dtheta < Self::STRAIGHT_THRESHOLD || side_diff < side_threshold {
+            // straight approximation
+            local_dx = 0.5 * (dl + dr);
+            local_dy = 0.0;
+        } else {
+            // curved approximation
+            let (sin, cos) = dtheta.sin_cos();
+            let rt = (rad * dl + rad * dr) / side_diff;
+            local_dx = rt * sin;
+            local_dy = rt * (1.0 - cos);
+        };
+
+        let (sin, cos) = theta.sin_cos();
+        let global_dx = cos * local_dx - sin * local_dy;
+        let global_dy = sin * local_dy + cos * local_dy;
+
+        self.pos[0] += global_dx;
+        self.pos[1] += global_dy;
+
+        self.last_distances = [l, r];
+        self.last_heading = theta;
+        self.last_update = Instant::now();
+    }
+    pub fn pos(&self) -> [f64; 2] {
+        [
+            self.start_pos[0] + self.pos[0],
+            self.start_pos[1] + self.pos[1],
+        ]
+    }
+    pub fn heading(&self) -> f64 {
+        self.start_heading + self.heading
     }
 }
