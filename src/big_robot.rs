@@ -12,6 +12,7 @@ mod modifier_path;
 mod odometry;
 mod path;
 mod pid;
+mod ramsete;
 
 // cartesion coordinate space
 //
