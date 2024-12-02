@@ -1,14 +1,6 @@
-use std::{
-    env::args,
-    mem::swap,
-    time::{Duration, Instant},
-};
+use std::time::{Duration, Instant};
 
-use crate::{
-    drivebase::{self, Drivebase},
-    //drivebase_measurer::{self, DriveBaseMeasurer},
-    imu::Imu,
-};
+use crate::{drivebase::Drivebase, imu::Imu};
 
 /*#[derive(Debug)]
 pub struct Odometry {
@@ -116,7 +108,6 @@ pub struct Odom {
 
 impl Odom {
     const STRAIGHT_THRESHOLD: f64 = 0.5f64.to_radians();
-    const STRAIGHT_THRESHOLD_SIDE: f64 = 0.5f64.to_radians();
     const UPDATE_RATE: Duration = Duration::from_millis(10);
     pub fn new<const N: usize>(
         start_pos: [f64; 2],

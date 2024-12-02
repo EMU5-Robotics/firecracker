@@ -8,6 +8,7 @@ mod brain;
 mod controller;
 mod drivebase;
 mod imu;
+mod modifier_path;
 mod odometry;
 mod path;
 mod pid;
