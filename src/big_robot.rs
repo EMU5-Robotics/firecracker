@@ -18,7 +18,8 @@ mod pid;
 //
 
 fn main() {
-    let _ = communication::Logger::try_init(RobotInfo::new("big robot"), true).unwrap();
+    let mut mediator =
+        communication::Logger::try_init(RobotInfo::new("big robot", 0.705, 0.45), true).unwrap();
     let (mut brain, mut controller) = brain::Brain::init();
 
     let drivebase = drivebase::Drivebase::new(
@@ -51,6 +52,10 @@ fn main() {
             log::info!("imu :{:?}", imu.heading());
             log::info!("distance :{:?}", drivebase_measurer.get_avg_distance());
             log::info!("x y :{:?}", odometry.get_xy());
+            let _ = mediator.send_event(communication::packets::FromMain::Odometry(
+                odometry.get_xy(),
+                imu.heading(),
+            ));
             log::info!("latch :{:?}", latch_close);
         }
 

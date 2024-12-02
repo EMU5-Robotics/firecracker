@@ -88,6 +88,8 @@ impl Odometry {
             self.dir_change.swap(0, 1);
 
             self.pure_imu_str_update_xy();
+            communication::plot!("dim", "x", self.x);
+            communication::plot!("dim", "y", self.y);
         }
     }
 

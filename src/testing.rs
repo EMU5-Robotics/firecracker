@@ -8,7 +8,8 @@ mod drivebase;
 // cartesion coordinate space
 
 fn main() {
-    let _ = communication::Logger::try_init(RobotInfo::new("small robot"), true).unwrap();
+    let _ =
+        communication::Logger::try_init(RobotInfo::new("small robot", 0.45, 0.45), true).unwrap();
     let (mut brain, mut controller) = brain::Brain::init();
     let mut was_powered = false;
 

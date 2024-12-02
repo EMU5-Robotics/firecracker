@@ -17,5 +17,5 @@ path = "src/testing.rs"
 
 [dependencies]
 robot_serial = { git = "ssh://git@github.com/EMU5-Robotics/transport.git", rev = "6f7b47151a317cb21285ab585b8c741bcfb78603" }
-communication = { git = "ssh://git@github.com/EMU5-Robotics/communication.git", rev = "02f0a275ff1b7758f70471fa28eccca304cd9a25" }
+communication = { git = "ssh://git@github.com/EMU5-Robotics/communication.git", rev = "99af0dc0798adfeeaa672f7fd0fdecd811f58c73" }
 log = "0.4.22"
