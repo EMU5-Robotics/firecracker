@@ -25,12 +25,13 @@ impl Imu {
             return;
         };
 
-        if self.original_heading.is_none() {
-            self.original_heading = Some(z_rotation);
+        match self.original_heading {
+            Some(og_heading) => {
+                self.heading = z_rotation - og_heading;
+            }
+            None => {
+                self.original_heading = Some(z_rotation);
+            }
         }
-
-        let og_heading = self.original_heading.unwrap();
-
-        self.heading = z_rotation - og_heading;
     }
 }

@@ -1,7 +1,7 @@
 use robot_serial::protocol::{MotorControl, ToBrain};
 pub struct Drivebase<const N: usize> {
-    left: [(usize, bool); N],
-    right: [(usize, bool); N],
+    pub left: [(usize, bool); N],
+    pub right: [(usize, bool); N],
     brakemode: MotorControl,
 }
 
@@ -28,7 +28,7 @@ impl<const N: usize> Drivebase<N> {
             if power == 0.0 {
                 return self.brakemode;
             }
-            let power = 0.5 * (power * 12.0).clamp(-12.0, 12.0);
+            let power = (power * 12.0).clamp(-12.0, 12.0);
             if rev {
                 MotorControl::Voltage(-power)
             } else {

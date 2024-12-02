@@ -16,7 +16,7 @@ fn main() {
         let pkt = brain.update_state(&mut controller);
         let pkt_to_write = brain.get_brain_pkt();
         //
-        log::info!("{:?}", pkt.imu_state);
+        //log::info!("{:?}", pkt.imu_state);
 
         let motor_speed = controller.lx();
         if motor_speed != 0.0 {

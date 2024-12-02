@@ -49,14 +49,16 @@ impl Brain {
             controller,
         )
     }
-    pub fn update_state(&mut self, controller: &mut Controller) -> ToRobot {
+    pub fn update_state(&mut self, controller: &mut Controller) -> (ToRobot, bool) {
         controller.update_no_change();
+        let mut matched_ok = false;
         match self.mediator.try_read() {
             Ok(pkt) => {
                 self.failed_read = false;
                 self.packet_buffer[1] = pkt.to_owned();
                 self.packet_buffer.swap(0, 1);
                 *controller = self.packet_buffer.clone().into();
+                matched_ok = true;
             }
             Err(robot_serial::Error::NoPacketRead) => {}
             Err(e) => {
@@ -67,7 +69,7 @@ impl Brain {
             }
             _ => {}
         }
-        self.packet_buffer[1].clone()
+        (self.packet_buffer[0].clone(), matched_ok)
     }
     pub fn get_brain_pkt(&mut self) -> &mut ToBrain {
         &mut self.to_brain
