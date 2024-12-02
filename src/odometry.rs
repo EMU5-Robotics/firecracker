@@ -152,9 +152,15 @@ impl Odom {
             let rt = (rad * dl + rad * dr) / side_diff;
             local_dx = rt * sin;
             local_dy = rt * (1.0 - cos);
+            // alternative approach from https://wiki.purduesigbots.com/software/odometry
+            //local_dx = 2.0 * (dtheta * 0.5).sin() * (dr/dtheta + rad);
+            //local_dy = 0.0
         };
 
-        let (sin, cos) = theta.sin_cos();
+        // use average theta not end theta for line segment
+        let average_theta = theta + dtheta * 0.5;
+
+        let (sin, cos) = average_theta.sin_cos();
         let global_dx = cos * local_dx - sin * local_dy;
         let global_dy = sin * local_dy + cos * local_dy;
 
