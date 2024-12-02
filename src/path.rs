@@ -3,6 +3,12 @@ use crate::{odometry::Odom, pid::Pid, vec::Vec2};
 use std::collections::VecDeque;
 use std::f64::consts::{PI, TAU};
 
+#[derive(Debug, Copy, Clone)]
+pub enum PathOutput {
+    Voltages(Vec2),
+    LinearAngularVelocity(Vec2),
+}
+
 #[derive(Debug)]
 pub struct Path {
     // this is a stack so the last element in
@@ -58,13 +64,13 @@ impl Path {
             self.segments.extend(new_seg.transform(odom));
         }
     }
-    pub fn follow(&mut self, odom: &Odom, angle_pid: &mut Pid) -> Vec2 {
+    pub fn follow(&mut self, odom: &Odom, angle_pid: &mut Pid) -> PathOutput {
         // get new segments if needed
         self.transform_segments(odom, angle_pid);
 
         // exit when no segments could be transformed
         let Some(seg) = self.current_segment.as_mut() else {
-            return Vec2::ZERO;
+            return PathOutput::Voltages(Vec2::ZERO);
         };
 
         // end segment and start next
@@ -92,7 +98,7 @@ impl Path {
 }
 
 pub trait PathSegment: std::fmt::Debug {
-    fn transform<'a>(self: Box<Self>, odom: &Odom) -> Vec<Box<dyn PathSegment + 'a>> {
+    fn transform<'a>(self: Box<Self>, _odom: &Odom) -> Vec<Box<dyn PathSegment + 'a>> {
         if self.finished_transform() {
             unreachable!("transform should never get called since finished_transform is true");
         } else {
@@ -101,9 +107,9 @@ pub trait PathSegment: std::fmt::Debug {
     }
     fn finished_transform(&self) -> bool;
     fn start(&mut self, odom: &Odom, angle_pid: &mut Pid);
-    fn follow(&mut self, odom: &Odom, angle_pid: &mut Pid) -> Vec2;
+    fn follow(&mut self, odom: &Odom, angle_pid: &mut Pid) -> PathOutput;
     fn end_follow<'a>(&mut self, odom: &Odom) -> Option<Vec<Box<dyn PathSegment + 'a>>>;
-    fn abrupt_end(&mut self, odom: &Odom) {}
+    fn abrupt_end(&mut self, _odom: &Odom) {}
     fn boxed_clone<'a>(&self) -> Box<dyn PathSegment + 'a> {
         panic!("This type is designed to not be clonable: {self:?}");
     }
@@ -114,7 +120,7 @@ impl PathSegment for Path {
         true
     }
     fn start(&mut self, _: &Odom, _: &mut Pid) {}
-    fn follow(&mut self, odom: &Odom, angle_pid: &mut Pid) -> Vec2 {
+    fn follow(&mut self, odom: &Odom, angle_pid: &mut Pid) -> PathOutput {
         Path::follow(self, odom, angle_pid)
     }
     fn end_follow<'a>(&mut self, _: &Odom) -> Option<Vec<Box<dyn PathSegment + 'a>>> {
@@ -153,16 +159,20 @@ impl PathSegment for RamsetePoint {
         true
     }
 
-    fn start(&mut self, odom: &Odom, _: &mut Pid) {
-        todo!()
+    fn start(&mut self, _: &Odom, _: &mut Pid) {
+        self.controller.set_target(self.target);
     }
 
-    fn follow(&mut self, odom: &Odom, _: &mut Pid) -> Vec2 {
-        todo!()
+    fn follow(&mut self, odom: &Odom, _: &mut Pid) -> PathOutput {
+        PathOutput::LinearAngularVelocity(self.controller.output_linear_angular(odom))
     }
 
     fn end_follow<'a>(&mut self, odom: &Odom) -> Option<Vec<Box<dyn PathSegment + 'a>>> {
-        todo!()
+        // ignore angle since that's most likely unrecoverable
+        if (odom.pos() - self.target.0).mag() < 30.0 {
+            return Some(vec![]);
+        }
+        None
     }
 }
 
@@ -181,9 +191,9 @@ impl PathSegment for TurnTo {
         angle_pid.set_target(self.target_heading);
         angle_pid.reset();
     }
-    fn follow(&mut self, odom: &Odom, angle_pid: &mut Pid) -> Vec2 {
+    fn follow(&mut self, odom: &Odom, angle_pid: &mut Pid) -> PathOutput {
         let pow = angle_pid.poll(odom.heading());
-        Vec2::new(-pow, pow)
+        PathOutput::Voltages(Vec2::new(-pow, pow))
     }
     fn end_follow<'a>(&mut self, odom: &Odom) -> Option<Vec<Box<dyn PathSegment + 'a>>> {
         if (odom.heading() - self.target_heading).abs() < 2f64.to_radians() {
@@ -222,8 +232,8 @@ impl PathSegment for Ram {
     fn start(&mut self, _: &Odom, _: &mut Pid) {
         self.start = std::time::Instant::now();
     }
-    fn follow(&mut self, _: &Odom, _: &mut Pid) -> Vec2 {
-        Vec2::splat(self.pow)
+    fn follow(&mut self, _: &Odom, _: &mut Pid) -> PathOutput {
+        PathOutput::Voltages(Vec2::splat(self.pow))
     }
     fn end_follow<'a>(&mut self, _: &Odom) -> Option<Vec<Box<dyn PathSegment + 'a>>> {
         if self.start.elapsed() > self.dur {

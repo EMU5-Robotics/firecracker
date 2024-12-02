@@ -8,8 +8,8 @@ impl PathSegment for Nop {
         true
     }
     fn start(&mut self, _: &Odom, _: &mut Pid) {}
-    fn follow(&mut self, _: &Odom, _: &mut Pid) -> Vec2 {
-        Vec2::ZERO
+    fn follow(&mut self, _: &Odom, _: &mut Pid) -> PathOutput {
+        PathOutput::Voltages(Vec2::ZERO)
     }
     fn end_follow<'a>(&mut self, _: &Odom) -> Option<Vec<Box<dyn PathSegment + 'a>>> {
         None
@@ -49,7 +49,7 @@ impl PathSegment for RepeatSegment {
         self.ref_seg = a;
         self.current_seg = self.ref_seg.boxed_clone();
     }
-    fn follow(&mut self, odom: &Odom, angle_pid: &mut Pid) -> Vec2 {
+    fn follow(&mut self, odom: &Odom, angle_pid: &mut Pid) -> PathOutput {
         self.current_seg.follow(odom, angle_pid)
     }
     fn end_follow<'a>(&mut self, odom: &Odom) -> Option<Vec<Box<dyn PathSegment + 'a>>> {
@@ -85,7 +85,7 @@ impl PathSegment for WhileSegment {
         true
     }
     fn start(&mut self, _: &Odom, _: &mut Pid) {}
-    fn follow(&mut self, odom: &Odom, angle_pid: &mut Pid) -> Vec2 {
+    fn follow(&mut self, odom: &Odom, angle_pid: &mut Pid) -> PathOutput {
         let _ = self.secondary.follow(odom, angle_pid);
         self.main.follow(odom, angle_pid)
     }
@@ -136,7 +136,7 @@ impl PathSegment for TimedSegment {
         self.start = std::time::Instant::now();
         self.seg.start(odom, angle_pid);
     }
-    fn follow(&mut self, odom: &Odom, angle_pid: &mut Pid) -> Vec2 {
+    fn follow(&mut self, odom: &Odom, angle_pid: &mut Pid) -> PathOutput {
         self.seg.follow(odom, angle_pid)
     }
     fn end_follow<'a>(&mut self, odom: &Odom) -> Option<Vec<Box<dyn PathSegment + 'a>>> {
