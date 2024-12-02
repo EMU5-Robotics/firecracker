@@ -1,7 +1,6 @@
 use std::{f64, time::Duration};
 
 use communication::RobotInfo;
-use drivebase::Drivebase;
 use modifier_path::{Nop, TimedSegment};
 use robot_serial::protocol::{controller::*, *};
 
@@ -15,6 +14,8 @@ mod path;
 mod pid;
 mod ramsete;
 mod vec;
+
+use vec::Vec2;
 
 // cartesion coordinate space
 //
@@ -46,7 +47,12 @@ fn main() {
 
     //let mut drivebase_measurer = drivebase_measurer::DriveBaseMeasurer::new(75.0);
     //let mut odometry = odometry::Odometry::new(5);
-    let mut odom = odometry::Odom::new([-400.0, -400.0], 90.0f64.to_radians(), &imu, &drivebase);
+    let mut odom = odometry::Odom::new(
+        Vec2::new(-400.0, -400.0),
+        90.0f64.to_radians(),
+        &imu,
+        &drivebase,
+    );
 
     let mut latch_close: i8 = 0;
 
@@ -67,7 +73,7 @@ fn main() {
             //log::info!("distance :{:?}", drivebase_measurer.get_avg_distance());
             //log::info!("x y :{:?}", odometry.get_xy());
             let _ = mediator.send_event(communication::packets::FromMain::Odometry(
-                odom.pos(),
+                odom.pos().into(),
                 odom.heading(),
             ));
             log::info!("latch :{:?}", latch_close);

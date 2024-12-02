@@ -5,8 +5,12 @@ pub struct Vec2 {
 }
 
 impl Vec2 {
-    pub fn new(x: f64, y: f64) -> Self {
+    pub const ZERO: Self = Self::splat(0.0);
+    pub const fn new(x: f64, y: f64) -> Self {
         Self { x, y }
+    }
+    pub const fn splat(v: f64) -> Self {
+        Self::new(v, v)
     }
     pub fn dot(self, rhs: Self) -> f64 {
         self.x * rhs.x + self.y * rhs.y
@@ -77,6 +81,12 @@ impl From<(f64, f64)> for Vec2 {
 impl From<&(f64, f64)> for Vec2 {
     fn from(v: &(f64, f64)) -> Self {
         Self::new(v.0, v.1)
+    }
+}
+
+impl Into<[f64; 2]> for Vec2 {
+    fn into(self) -> [f64; 2] {
+        [self.x, self.y]
     }
 }
 

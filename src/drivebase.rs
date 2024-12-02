@@ -1,11 +1,14 @@
 use std::f64::consts::TAU;
 
 use robot_serial::protocol::{EncoderState, MotorControl, ToBrain, ToRobot};
+
+use crate::vec::Vec2;
+
 pub struct Drivebase<const N: usize> {
     left: [(usize, bool); N],
     right: [(usize, bool); N],
     brakemode: MotorControl,
-    side_distances: [f64; 2],
+    side_distances: Vec2,
     radius: f64,
     radians_to_mil: f64,
 }
@@ -25,7 +28,7 @@ impl<const N: usize> Drivebase<N> {
             left,
             right,
             brakemode,
-            side_distances: [0.0; 2],
+            side_distances: Vec2::ZERO,
             radius,
             radians_to_mil,
         }
@@ -84,7 +87,7 @@ impl<const N: usize> Drivebase<N> {
         }
         // d = ang * pi
     }
-    pub fn update(&mut self, pkt: &ToRobot) -> [f64; 2] {
+    pub fn update(&mut self, pkt: &ToRobot) -> Vec2 {
         let get_dist = |motors: &[(usize, bool); N]| -> Option<f64> {
             let mut sum = 0.0;
             for (port, rev) in motors {
@@ -96,14 +99,14 @@ impl<const N: usize> Drivebase<N> {
             }
             Some(sum / N as f64)
         };
-        let new = [
+        let new = Vec2::new(
             get_dist(&self.left).unwrap_or(self.side_distances[0]),
             get_dist(&self.right).unwrap_or(self.side_distances[1]),
-        ];
+        );
         self.side_distances = new;
         new
     }
-    pub fn side_distances(&self) -> [f64; 2] {
+    pub fn side_distances(&self) -> Vec2 {
         self.side_distances
     }
     pub fn radius(&self) -> f64 {

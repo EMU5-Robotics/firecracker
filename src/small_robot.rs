@@ -4,6 +4,13 @@ use robot_serial::protocol::{controller::*, *};
 mod brain;
 mod controller;
 mod drivebase;
+mod imu;
+mod modifier_path;
+mod odometry;
+mod path;
+mod pid;
+mod ramsete;
+mod vec;
 
 // cartesion coordinate space
 
@@ -17,6 +24,7 @@ fn main() {
         [(11, false), (12, false), (13, false)],
         MotorControl::BrakeBrake,
         150.0,
+        75.0,
     );
 
     loop {

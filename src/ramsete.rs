@@ -1,4 +1,4 @@
-use crate::odometry::Odom;
+use crate::{odometry::Odom, vec::Vec2};
 
 // see https://wiki.purduesigbots.com/software/control-algorithms/ramsete
 #[derive(Debug, Clone)]
@@ -8,7 +8,7 @@ pub struct Ramsete {
     linear_velocity: f64,
     angular_velocity: f64,
     k: f64,
-    target: ([f64; 2], f64),
+    target: (Vec2, f64),
 }
 
 impl Ramsete {
@@ -20,13 +20,13 @@ impl Ramsete {
             linear_velocity,
             angular_velocity,
             k,
-            target: ([0.0; 2], 0.0),
+            target: (Vec2::ZERO, 0.0),
         }
     }
-    pub fn set_target(&mut self, target: ([f64; 2], f64)) {
+    pub fn set_target(&mut self, target: (Vec2, f64)) {
         self.target = target;
     }
-    pub fn output_linear_angular(&self, odom: &Odom) -> [f64; 2] {
+    pub fn output_linear_angular(&self, odom: &Odom) -> Vec2 {
         // 3.25" wheels
         let pos = odom.pos();
         let heading = odom.heading();
@@ -46,6 +46,6 @@ impl Ramsete {
             + self.k * error_heading
             + (self.beta * self.linear_velocity * sin_error * error_pos[1]) / error_heading;
 
-        [linear_vel, angular_vel]
+        Vec2::new(linear_vel, angular_vel)
     }
 }

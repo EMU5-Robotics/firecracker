@@ -1,5 +1,5 @@
 use crate::ramsete::Ramsete;
-use crate::{odometry::Odom, pid::Pid};
+use crate::{odometry::Odom, pid::Pid, vec::Vec2};
 use std::collections::VecDeque;
 use std::f64::consts::{PI, TAU};
 
@@ -58,13 +58,13 @@ impl Path {
             self.segments.extend(new_seg.transform(odom));
         }
     }
-    pub fn follow(&mut self, odom: &Odom, angle_pid: &mut Pid) -> [f64; 2] {
+    pub fn follow(&mut self, odom: &Odom, angle_pid: &mut Pid) -> Vec2 {
         // get new segments if needed
         self.transform_segments(odom, angle_pid);
 
         // exit when no segments could be transformed
         let Some(seg) = self.current_segment.as_mut() else {
-            return [0.0; 2];
+            return Vec2::ZERO;
         };
 
         // end segment and start next
@@ -101,7 +101,7 @@ pub trait PathSegment: std::fmt::Debug {
     }
     fn finished_transform(&self) -> bool;
     fn start(&mut self, odom: &Odom, angle_pid: &mut Pid);
-    fn follow(&mut self, odom: &Odom, angle_pid: &mut Pid) -> [f64; 2];
+    fn follow(&mut self, odom: &Odom, angle_pid: &mut Pid) -> Vec2;
     fn end_follow<'a>(&mut self, odom: &Odom) -> Option<Vec<Box<dyn PathSegment + 'a>>>;
     fn abrupt_end(&mut self, odom: &Odom) {}
     fn boxed_clone<'a>(&self) -> Box<dyn PathSegment + 'a> {
@@ -114,7 +114,7 @@ impl PathSegment for Path {
         true
     }
     fn start(&mut self, _: &Odom, _: &mut Pid) {}
-    fn follow(&mut self, odom: &Odom, angle_pid: &mut Pid) -> [f64; 2] {
+    fn follow(&mut self, odom: &Odom, angle_pid: &mut Pid) -> Vec2 {
         Path::follow(self, odom, angle_pid)
     }
     fn end_follow<'a>(&mut self, _: &Odom) -> Option<Vec<Box<dyn PathSegment + 'a>>> {
@@ -144,7 +144,7 @@ impl PathSegment for Path {
 
 #[derive(Debug)]
 struct RamsetePoint {
-    target: ([f64; 2], f64),
+    target: (Vec2, f64),
     controller: Ramsete,
 }
 
@@ -157,7 +157,7 @@ impl PathSegment for RamsetePoint {
         todo!()
     }
 
-    fn follow(&mut self, odom: &Odom, _: &mut Pid) -> [f64; 2] {
+    fn follow(&mut self, odom: &Odom, _: &mut Pid) -> Vec2 {
         todo!()
     }
 
@@ -181,9 +181,9 @@ impl PathSegment for TurnTo {
         angle_pid.set_target(self.target_heading);
         angle_pid.reset();
     }
-    fn follow(&mut self, odom: &Odom, angle_pid: &mut Pid) -> [f64; 2] {
+    fn follow(&mut self, odom: &Odom, angle_pid: &mut Pid) -> Vec2 {
         let pow = angle_pid.poll(odom.heading());
-        [-pow, pow]
+        Vec2::new(-pow, pow)
     }
     fn end_follow<'a>(&mut self, odom: &Odom) -> Option<Vec<Box<dyn PathSegment + 'a>>> {
         if (odom.heading() - self.target_heading).abs() < 2f64.to_radians() {
@@ -222,8 +222,8 @@ impl PathSegment for Ram {
     fn start(&mut self, _: &Odom, _: &mut Pid) {
         self.start = std::time::Instant::now();
     }
-    fn follow(&mut self, _: &Odom, _: &mut Pid) -> [f64; 2] {
-        [self.pow; 2]
+    fn follow(&mut self, _: &Odom, _: &mut Pid) -> Vec2 {
+        Vec2::splat(self.pow)
     }
     fn end_follow<'a>(&mut self, _: &Odom) -> Option<Vec<Box<dyn PathSegment + 'a>>> {
         if self.start.elapsed() > self.dur {

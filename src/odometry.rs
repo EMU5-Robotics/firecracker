@@ -17,19 +17,19 @@ impl Odom {
     const STRAIGHT_THRESHOLD: f64 = 0.5f64.to_radians();
     const UPDATE_RATE: Duration = Duration::from_millis(10);
     pub fn new<const N: usize>(
-        start_pos: [f64; 2],
+        start_pos: Vec2,
         start_heading: f64,
         imu: &Imu,
         drivebase: &Drivebase<N>,
     ) -> Self {
         let heading = imu.heading();
         Self {
-            start_pos: start_pos.into(),
+            start_pos,
             start_heading,
             pos: [0.0; 2].into(),
             heading,
             last_heading: heading,
-            last_distances: drivebase.side_distances().into(),
+            last_distances: drivebase.side_distances(),
             last_update: Instant::now(),
             velocity: 0.0,
         }
@@ -39,8 +39,9 @@ impl Odom {
             return;
         }
 
-        let [l, r] = drivebase.side_distances();
-        let [dl, dr] = [l - self.last_distances[0], r - self.last_distances[1]];
+        let lr = drivebase.side_distances();
+        let Vec2 { x: l, y: r } = lr;
+        let Vec2 { x: dl, y: dr } = lr - self.last_distances;
         let theta = imu.heading();
         let dtheta = theta - self.last_heading;
 
@@ -77,15 +78,12 @@ impl Odom {
         self.velocity = (global_dy.powi(2) + global_dx.powi(2)).sqrt()
             / self.last_update.elapsed().as_secs_f64();
 
-        self.last_distances = [l, r].into();
+        self.last_distances = lr;
         self.last_heading = theta;
         self.last_update = Instant::now();
     }
-    pub fn pos(&self) -> [f64; 2] {
-        [
-            self.start_pos[0] + self.pos[0],
-            self.start_pos[1] + self.pos[1],
-        ]
+    pub fn pos(&self) -> Vec2 {
+        self.start_pos + self.pos
     }
     pub fn heading(&self) -> f64 {
         self.start_heading + self.heading

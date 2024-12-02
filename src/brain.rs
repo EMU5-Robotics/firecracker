@@ -67,7 +67,6 @@ impl Brain {
                     self.failed_read = true;
                 }
             }
-            _ => {}
         }
         (self.packet_buffer[0].clone(), matched_ok)
     }
