@@ -1,7 +1,9 @@
 use std::{f64, time::Duration};
 
 use communication::RobotInfo;
-use modifier_path::{Nop, TimedSegment};
+use modifier_path::*;
+use path::*;
+use ramsete::Ramsete;
 use robot_serial::protocol::{controller::*, *};
 
 mod brain;
@@ -39,10 +41,16 @@ fn main() {
     let mut imu_pid = pid::Pid::new(0.55, 0.055, 2.2);
 
     let mut track_pid = false;
+    let ramsete = Ramsete::new(1.0, 1.0, 1.0, 1.0);
 
+    // example path
     let _path = path!(
         Nop {},
-        TimedSegment::new(Box::new(Nop {}), Duration::from_millis(200))
+        TimedSegment::new(Box::new(Nop {}), Duration::from_millis(200)),
+        RamsetePoint::new(
+            (Vec2::new(-350.0, -350.0), std::f64::consts::FRAC_PI_4),
+            ramsete
+        ),
     );
 
     //let mut drivebase_measurer = drivebase_measurer::DriveBaseMeasurer::new(75.0);

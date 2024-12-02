@@ -149,9 +149,15 @@ impl PathSegment for Path {
 }
 
 #[derive(Debug)]
-struct RamsetePoint {
+pub struct RamsetePoint {
     target: (Vec2, f64),
     controller: Ramsete,
+}
+
+impl RamsetePoint {
+    pub fn new(target: (Vec2, f64), controller: Ramsete) -> Self {
+        Self { target, controller }
+    }
 }
 
 impl PathSegment for RamsetePoint {
