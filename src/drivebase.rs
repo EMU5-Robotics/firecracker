@@ -1,3 +1,5 @@
+use std::f64::consts::TAU;
+
 use robot_serial::protocol::{EncoderState, MotorControl, ToBrain, ToRobot};
 pub struct Drivebase<const N: usize> {
     left: [(usize, bool); N],
@@ -45,11 +47,42 @@ impl<const N: usize> Drivebase<N> {
         };
 
         for (idx, rev) in &self.left {
-            brain_pkt.set_motors[*idx - 1] = (map_voltage(left_side, *rev));
+            brain_pkt.set_motors[*idx - 1] = map_voltage(left_side, *rev);
         }
         for (idx, rev) in &self.right {
-            brain_pkt.set_motors[*idx - 1] = (map_voltage(right_side, *rev));
+            brain_pkt.set_motors[*idx - 1] = map_voltage(right_side, *rev);
         }
+    }
+    // see https://wiki.purduesigbots.com/software/control-algorithms/ramsete#commanding-the-robot
+    // note for us we rotate counterclockwise
+    pub fn write_linear_angular_vel(&self, linear: f64, angular: f64, brain_pkt: &mut ToBrain) {
+        let linear_angular = linear / self.radians_to_mil;
+        let left = linear_angular - angular;
+        let right = linear_angular + angular;
+
+        let map_rpm = |angular_vel: f64, rev: bool| -> MotorControl {
+            if angular_vel == 0.0 {
+                return self.brakemode;
+            }
+
+            // convert from rad/s to rpm
+            // TODO: validate if gearing is taken care of from above?
+            let target_rpm = angular_vel / TAU * 60.0;
+
+            if rev {
+                MotorControl::Velocity(-target_rpm as i32)
+            } else {
+                MotorControl::Velocity(target_rpm as i32)
+            }
+        };
+
+        for (idx, rev) in &self.left {
+            brain_pkt.set_motors[*idx - 1] = (map_rpm(left, *rev));
+        }
+        for (idx, rev) in &self.right {
+            brain_pkt.set_motors[*idx - 1] = (map_rpm(right, *rev));
+        }
+        // d = ang * pi
     }
     pub fn update(&mut self, pkt: &ToRobot) -> [f64; 2] {
         let get_dist = |motors: &[(usize, bool); N]| -> Option<f64> {
