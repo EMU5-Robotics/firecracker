@@ -4,9 +4,6 @@ use crate::{odometry::Odom, path::*, pid::Pid};
 pub struct Nop {}
 
 impl PathSegment for Nop {
-    fn transform<'a>(self: Box<Self>, _: &Odom) -> Vec<Box<dyn PathSegment + 'a>> {
-        unreachable!("transform should never get called since finished_transform is true")
-    }
     fn finished_transform(&self) -> bool {
         true
     }
@@ -42,9 +39,6 @@ impl RepeatSegment {
 }
 
 impl PathSegment for RepeatSegment {
-    fn transform<'a>(self: Box<Self>, _: &Odom) -> Vec<Box<dyn PathSegment + 'a>> {
-        unreachable!("transform should never get called since finished_transform is true")
-    }
     fn finished_transform(&self) -> bool {
         true
     }
@@ -87,9 +81,6 @@ pub struct WhileSegment {
 }
 
 impl PathSegment for WhileSegment {
-    fn transform<'a>(self: Box<Self>, _: &Odom) -> Vec<Box<dyn PathSegment + 'a>> {
-        unreachable!("transform should never get called since finished_transform is true")
-    }
     fn finished_transform(&self) -> bool {
         true
     }

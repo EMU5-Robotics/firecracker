@@ -92,7 +92,13 @@ impl Path {
 }
 
 pub trait PathSegment: std::fmt::Debug {
-    fn transform<'a>(self: Box<Self>, odom: &Odom) -> Vec<Box<dyn PathSegment + 'a>>;
+    fn transform<'a>(self: Box<Self>, odom: &Odom) -> Vec<Box<dyn PathSegment + 'a>> {
+        if self.finished_transform() {
+            unreachable!("transform should never get called since finished_transform is true");
+        } else {
+            unimplemented!();
+        }
+    }
     fn finished_transform(&self) -> bool;
     fn start(&mut self, odom: &Odom, angle_pid: &mut Pid);
     fn follow(&mut self, odom: &Odom, angle_pid: &mut Pid) -> [f64; 2];
@@ -104,9 +110,6 @@ pub trait PathSegment: std::fmt::Debug {
 }
 
 impl PathSegment for Path {
-    fn transform<'a>(self: Box<Self>, _: &Odom) -> Vec<Box<dyn PathSegment + 'a>> {
-        unreachable!("transform should never get called since finished_transform is true");
-    }
     fn finished_transform(&self) -> bool {
         true
     }
@@ -146,10 +149,6 @@ struct RamsetePoint {
 }
 
 impl PathSegment for RamsetePoint {
-    fn transform<'a>(self: Box<Self>, odom: &Odom) -> Vec<Box<dyn PathSegment + 'a>> {
-        unreachable!("transform should never get called since finished_transform is true");
-    }
-
     fn finished_transform(&self) -> bool {
         true
     }
@@ -174,9 +173,6 @@ struct TurnTo {
 }
 
 impl PathSegment for TurnTo {
-    fn transform<'a>(self: Box<Self>, _: &Odom) -> Vec<Box<dyn PathSegment + 'a>> {
-        unreachable!("transform should never get called since finished_transform is true")
-    }
     fn finished_transform(&self) -> bool {
         true
     }
@@ -220,9 +216,6 @@ impl Ram {
 }
 
 impl PathSegment for Ram {
-    fn transform<'a>(self: Box<Self>, _: &Odom) -> Vec<Box<dyn PathSegment + 'a>> {
-        unreachable!("transform should never get called since finished_transform is true")
-    }
     fn finished_transform(&self) -> bool {
         true
     }
