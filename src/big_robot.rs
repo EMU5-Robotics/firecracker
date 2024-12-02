@@ -14,6 +14,7 @@ mod odometry;
 mod path;
 mod pid;
 mod ramsete;
+mod vec;
 
 // cartesion coordinate space
 //
