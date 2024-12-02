@@ -1,3 +1,4 @@
+use crate::ramsete::Ramsete;
 use crate::{odometry::Odom, pid::Pid};
 use std::collections::VecDeque;
 use std::f64::consts::{PI, TAU};
@@ -23,6 +24,13 @@ impl Path {
     pub fn extend_front(&mut self, v: Box<dyn PathSegment>) {
         self.segments.push_back(v);
     }
+}
+
+#[macro_export]
+macro_rules! path {
+    ($($item:expr),* $(,)?) => {
+            $crate::path::Path::new(vec![$(Box::new($item)),+])
+        }
 }
 
 impl From<Box<dyn PathSegment>> for Path {
@@ -128,6 +136,34 @@ impl PathSegment for Path {
                 .as_ref()
                 .map(|v| v.as_ref().boxed_clone()),
         })
+    }
+}
+
+#[derive(Debug)]
+struct RamsetePoint {
+    target: ([f64; 2], f64),
+    controller: Ramsete,
+}
+
+impl PathSegment for RamsetePoint {
+    fn transform<'a>(self: Box<Self>, odom: &Odom) -> Vec<Box<dyn PathSegment + 'a>> {
+        unreachable!("transform should never get called since finished_transform is true");
+    }
+
+    fn finished_transform(&self) -> bool {
+        true
+    }
+
+    fn start(&mut self, odom: &Odom, _: &mut Pid) {
+        todo!()
+    }
+
+    fn follow(&mut self, odom: &Odom, _: &mut Pid) -> [f64; 2] {
+        todo!()
+    }
+
+    fn end_follow<'a>(&mut self, odom: &Odom) -> Option<Vec<Box<dyn PathSegment + 'a>>> {
+        todo!()
     }
 }
 

@@ -1,7 +1,8 @@
-use std::f64;
+use std::{f64, time::Duration};
 
 use communication::RobotInfo;
 use drivebase::Drivebase;
+use modifier_path::{Nop, TimedSegment};
 use robot_serial::protocol::{controller::*, *};
 
 mod brain;
@@ -36,6 +37,11 @@ fn main() {
     let mut imu_pid = pid::Pid::new(0.55, 0.055, 2.2);
 
     let mut track_pid = false;
+
+    let _path = path!(
+        Nop {},
+        TimedSegment::new(Box::new(Nop {}), Duration::from_millis(200))
+    );
 
     //let mut drivebase_measurer = drivebase_measurer::DriveBaseMeasurer::new(75.0);
     //let mut odometry = odometry::Odometry::new(5);

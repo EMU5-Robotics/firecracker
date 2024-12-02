@@ -104,6 +104,7 @@ pub struct Odom {
     last_heading: f64,
     last_update: Instant,
     last_distances: [f64; 2],
+    velocity: f64,
 }
 
 impl Odom {
@@ -124,6 +125,7 @@ impl Odom {
             last_heading: heading,
             last_distances: drivebase.side_distances(),
             last_update: Instant::now(),
+            velocity: 0.0,
         }
     }
     pub fn update<const N: usize>(&mut self, imu: &Imu, drivebase: &Drivebase<N>) {
@@ -166,6 +168,8 @@ impl Odom {
 
         self.pos[0] += global_dx;
         self.pos[1] += global_dy;
+        self.velocity = (global_dy.powi(2) + global_dx.powi(2)).sqrt()
+            / self.last_update.elapsed().as_secs_f64();
 
         self.last_distances = [l, r];
         self.last_heading = theta;
@@ -179,5 +183,8 @@ impl Odom {
     }
     pub fn heading(&self) -> f64 {
         self.start_heading + self.heading
+    }
+    pub fn velocity(&self) -> f64 {
+        self.velocity
     }
 }

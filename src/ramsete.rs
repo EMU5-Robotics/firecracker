@@ -1,6 +1,7 @@
 use crate::odometry::Odom;
 
 // see https://wiki.purduesigbots.com/software/control-algorithms/ramsete
+#[derive(Debug, Clone)]
 pub struct Ramsete {
     beta: f64,
     zeta: f64,

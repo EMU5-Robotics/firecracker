@@ -116,3 +116,50 @@ impl PathSegment for WhileSegment {
         todo!()
     }
 }
+
+#[derive(Debug)]
+pub struct TimedSegment {
+    seg: Box<dyn PathSegment>,
+    dur: std::time::Duration,
+    start: std::time::Instant,
+}
+
+impl TimedSegment {
+    pub fn new(seg: Box<dyn PathSegment>, dur: std::time::Duration) -> Self {
+        Self {
+            seg,
+            dur,
+            start: std::time::Instant::now(),
+        }
+    }
+}
+
+impl PathSegment for TimedSegment {
+    fn transform<'a>(self: Box<Self>, odom: &Odom) -> Vec<Box<dyn PathSegment + 'a>> {
+        self.seg.transform(odom)
+    }
+    fn finished_transform(&self) -> bool {
+        self.seg.finished_transform()
+    }
+    fn start(&mut self, odom: &Odom, angle_pid: &mut Pid) {
+        self.start = std::time::Instant::now();
+        self.seg.start(odom, angle_pid);
+    }
+    fn follow(&mut self, odom: &Odom, angle_pid: &mut Pid) -> [f64; 2] {
+        self.seg.follow(odom, angle_pid)
+    }
+    fn end_follow<'a>(&mut self, odom: &Odom) -> Option<Vec<Box<dyn PathSegment + 'a>>> {
+        if self.start.elapsed() > self.dur {
+            self.seg.abrupt_end(odom);
+            return Some(Vec::new());
+        }
+        self.seg.end_follow(odom)
+    }
+    fn boxed_clone<'a>(&self) -> Box<dyn PathSegment + 'a> {
+        Box::new(Self {
+            seg: self.seg.as_ref().boxed_clone(),
+            dur: self.dur,
+            start: self.start,
+        })
+    }
+}
