@@ -175,7 +175,7 @@ impl PathSegment for RamsetePoint {
 
     fn end_follow<'a>(&mut self, odom: &Odom) -> Option<Vec<Box<dyn PathSegment + 'a>>> {
         // ignore angle since that's most likely unrecoverable
-        if (odom.pos() - self.target.0).mag() < 30.0 {
+        if (odom.pos() - self.target.0).mag() < 50.0 {
             return Some(vec![]);
         }
         None
@@ -218,6 +218,7 @@ impl PathSegment for RamsetePath {
         if (odom.pos() - target.0).mag() < 50.0 {
             self.current_target = self.target.pop_front();
             if let Some(target) = self.current_target {
+                log::info!("new ramsete target: {target:?}");
                 self.controller.set_target(target);
                 return self.follow(odom, angle_pid);
             }

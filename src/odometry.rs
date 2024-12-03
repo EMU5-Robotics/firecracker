@@ -37,8 +37,8 @@ impl Odom {
             return;
         }
 
-        let lr = drivebase.side_distances(); 
-        let Vec2 { x: l, y: r } = lr; 
+        let lr = drivebase.side_distances();
+        let Vec2 { x: l, y: r } = lr;
         let Vec2 { x: dl, y: dr } = lr - self.last_distances;
 
         let theta = imu.heading();
@@ -50,9 +50,9 @@ impl Odom {
         let side_threshold = Self::STRAIGHT_THRESHOLD * (2.0 * rad);
         let local_dx;
         let local_dy;
-        //let cond = dtheta < Self::STRAIGHT_THRESHOLD || side_diff < side_threshold;
-        let cond = true;
-        
+        let cond = dtheta < Self::STRAIGHT_THRESHOLD || side_diff < side_threshold;
+        //let cond = true;
+
         if cond {
             // straight approximation
             local_dx = 0.5 * (dl + dr);
@@ -69,13 +69,12 @@ impl Odom {
         };
 
         // use average theta not end theta for line segment
-        let average_theta = theta + dtheta * 0.5;
+        let average_theta = self.start_heading + theta + dtheta * 0.5;
 
         let (sin, cos) = average_theta.sin_cos();
 
         let global_dx = cos * local_dx - sin * local_dy;
-        let global_dy = sin * local_dy + cos * local_dy;
-
+        let global_dy = sin * local_dx + cos * local_dy;
 
         self.pos[0] += global_dx;
         self.pos[1] += global_dy;

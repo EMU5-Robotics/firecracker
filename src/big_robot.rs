@@ -42,7 +42,7 @@ fn main() {
     let mut imu_pid = pid::Pid::new(0.55, 0.055, 2.2);
 
     let mut track_pid = false;
-    let ramsete = Ramsete::new(0.3, 0.3);
+    let ramsete = Ramsete::new(0.3, 0.5);
     let ramsete_path = RamsetePath::new(
         vec![
             (Vec2::new(0.00, 10.00), 1.58),
@@ -274,6 +274,7 @@ fn main() {
         imu.update(&pkt);
         drivebase.update(&pkt);
         odom.update(&imu, &drivebase);
+        drivebase.write_powers(controller.ly(), -controller.rx(), pkt_to_write);
 
         match path.follow(&odom, &mut imu_pid) {
             PathOutput::Voltages(_) => {
@@ -285,7 +286,8 @@ fn main() {
             }
             PathOutput::LinearAngularVelocity(la) => {
                 if just_updated {
-                    log::info!("{la:?}");
+                    log::info!("pos: {:.2?} | {:.2}", odom.pos(), odom.heading());
+                    log::info!("la: {la:.2?}");
                 }
                 drivebase.write_linear_angular_vel(la.x, la.y, pkt_to_write);
             }

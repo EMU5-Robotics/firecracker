@@ -24,7 +24,7 @@ impl Ramsete {
         let pos = odom.pos();
         let heading = odom.heading();
 
-        let error_pos_local = [self.target.0[0] - pos[0], self.target.0[1] - pos[1]];
+        let error_pos_local = [(self.target.0[0] - pos[0]), (self.target.0[1] - pos[1])];
         let (s, c) = heading.sin_cos();
         let error_pos = [
             error_pos_local[0] * c + error_pos_local[1] * s,
@@ -33,8 +33,8 @@ impl Ramsete {
         let error_heading = self.target.1 - heading;
 
         let (sin_error, cos_error) = error_heading.sin_cos();
-        let linear_velocity = 0.01 * error_pos[0];
-        let angular_velocity = 0.01 * error_heading;
+        let linear_velocity = 0.1 * error_pos[0];
+        let angular_velocity = 0.0001 * error_heading;
         let k = 2.0
             * self.zeta
             * (angular_velocity.powi(2) + self.beta * linear_velocity.powi(2)).sqrt();
