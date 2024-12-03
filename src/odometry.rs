@@ -7,7 +7,6 @@ pub struct Odom {
     start_heading: f64,
     pos: Vec2,
     heading: f64,
-    last_heading: f64,
     last_update: Instant,
     last_distances: Vec2,
     velocity: f64,
@@ -28,7 +27,6 @@ impl Odom {
             start_heading,
             pos: [0.0; 2].into(),
             heading,
-            last_heading: heading,
             last_distances: drivebase.side_distances(),
             last_update: Instant::now(),
             velocity: 0.0,
@@ -39,11 +37,12 @@ impl Odom {
             return;
         }
 
-        let lr = drivebase.side_distances();
-        let Vec2 { x: l, y: r } = lr;
+        let lr = drivebase.side_distances(); 
+        let Vec2 { x: l, y: r } = lr; 
         let Vec2 { x: dl, y: dr } = lr - self.last_distances;
+
         let theta = imu.heading();
-        let dtheta = theta - self.last_heading;
+        let dtheta = theta - self.heading;
 
         let rad = drivebase.radius();
         let side_diff = r - l;
@@ -51,7 +50,10 @@ impl Odom {
         let side_threshold = Self::STRAIGHT_THRESHOLD * (2.0 * rad);
         let local_dx;
         let local_dy;
-        if dtheta < Self::STRAIGHT_THRESHOLD || side_diff < side_threshold {
+        //let cond = dtheta < Self::STRAIGHT_THRESHOLD || side_diff < side_threshold;
+        let cond = true;
+        
+        if cond {
             // straight approximation
             local_dx = 0.5 * (dl + dr);
             local_dy = 0.0;
@@ -70,8 +72,10 @@ impl Odom {
         let average_theta = theta + dtheta * 0.5;
 
         let (sin, cos) = average_theta.sin_cos();
+
         let global_dx = cos * local_dx - sin * local_dy;
         let global_dy = sin * local_dy + cos * local_dy;
+
 
         self.pos[0] += global_dx;
         self.pos[1] += global_dy;
@@ -79,7 +83,7 @@ impl Odom {
             / self.last_update.elapsed().as_secs_f64();
 
         self.last_distances = lr;
-        self.last_heading = theta;
+        self.heading = theta;
         self.last_update = Instant::now();
     }
     pub fn pos(&self) -> Vec2 {

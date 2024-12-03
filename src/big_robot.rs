@@ -79,6 +79,7 @@ fn main() {
         if just_updated {
             //log::info!("{:?}", pkt.encoder_state);
             log::info!("imu :{:?}", imu.heading());
+            log::info!("pkt.encoder_state: {:?}", pkt.encoder_state);
             //log::info!("distance :{:?}", drivebase_measurer.get_avg_distance());
             //log::info!("x y :{:?}", odometry.get_xy());
             let _ = mediator.send_event(communication::packets::FromMain::Odometry(
