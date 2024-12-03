@@ -24,6 +24,7 @@ impl Imu {
         let ImuState::State { z_rotation, .. } = pkt.imu_state[self.port - 1] else {
             return;
         };
+        let z_rotation = -z_rotation;
 
         match self.original_heading {
             Some(og_heading) => {

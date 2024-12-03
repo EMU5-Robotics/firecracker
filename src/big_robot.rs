@@ -42,7 +42,7 @@ fn main() {
     let mut imu_pid = pid::Pid::new(0.55, 0.055, 2.2);
 
     let mut track_pid = false;
-    let ramsete = Ramsete::new(0.3, 0.5);
+    let ramsete = Ramsete::new(0.025, 0.7);
     let ramsete_path = RamsetePath::new(
         vec![
             (Vec2::new(0.00, 10.00), 1.58),
@@ -276,22 +276,31 @@ fn main() {
         odom.update(&imu, &drivebase);
         drivebase.write_powers(controller.ly(), -controller.rx(), pkt_to_write);
 
+        let pressed_y = controller.pressed(Y);
+
         match path.follow(&odom, &mut imu_pid) {
             PathOutput::Voltages(_) => {
                 if at_volt == false {
                     log::info!("switch to voltages");
                 }
+                if pressed_y {
+                    log::info!("pos: {:.2?} | {:.2}", odom.pos(), odom.heading());
+                }
                 at_volt = true;
                 drivebase.write_powers(controller.ly(), -controller.rx(), pkt_to_write);
             }
             PathOutput::LinearAngularVelocity(la) => {
-                if just_updated {
+                if pressed_y {
                     log::info!("pos: {:.2?} | {:.2}", odom.pos(), odom.heading());
                     log::info!("la: {la:.2?}");
                 }
                 drivebase.write_linear_angular_vel(la.x, la.y, pkt_to_write);
             }
         }
+        /*if pressed_y {
+            log::info!("pos: {:.2?} | {:.2}", odom.pos(), odom.heading());
+        }*/
+        //drivebase.write_powers(controller.ly(), -controller.rx(), pkt_to_write);
 
         if just_updated {}
 

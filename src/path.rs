@@ -214,11 +214,17 @@ impl PathSegment for RamsetePath {
         let Some(target) = self.current_target else {
             return PathOutput::Voltages(Vec2::ZERO);
         };
+        let diff = odom.pos() - target.0;
 
-        if (odom.pos() - target.0).mag() < 50.0 {
+        let nor = Vec2::new(target.1.cos(), target.1.sin());
+
+        if (odom.pos() - target.0).mag() < 80.0
+            && (odom.heading() - target.1).abs() < 30f64.to_radians()
+            || diff.dot(nor) > 0.0
+        {
             self.current_target = self.target.pop_front();
             if let Some(target) = self.current_target {
-                log::info!("new ramsete target: {target:?}");
+                log::error!("new ramsete target: {target:?}");
                 self.controller.set_target(target);
                 return self.follow(odom, angle_pid);
             }

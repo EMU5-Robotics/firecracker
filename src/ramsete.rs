@@ -33,8 +33,8 @@ impl Ramsete {
         let error_heading = self.target.1 - heading;
 
         let (sin_error, cos_error) = error_heading.sin_cos();
-        let linear_velocity = 0.1 * error_pos[0];
-        let angular_velocity = 0.0001 * error_heading;
+        let linear_velocity = 0.10 * error_pos[0];
+        let angular_velocity = 0.01 * error_heading;
         let k = 2.0
             * self.zeta
             * (angular_velocity.powi(2) + self.beta * linear_velocity.powi(2)).sqrt();
@@ -44,6 +44,6 @@ impl Ramsete {
             + k * error_heading
             + (self.beta * linear_velocity * sin_error * error_pos[1]) / error_heading;
 
-        Vec2::new(linear_vel, angular_vel)
+        Vec2::new(2.0 * linear_vel, angular_vel)
     }
 }
