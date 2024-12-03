@@ -43,7 +43,6 @@ fn main() {
 
     let mut track_pid = false;
     let ramsete = Ramsete::new(0.3, 0.3);
-
     let ramsete_path = RamsetePath::new(
         vec![
             (Vec2::new(0.00, 10.00), 1.58),
@@ -252,8 +251,8 @@ fn main() {
 
     // example path
     let mut path = path!(
-        Nop {},
-        TimedSegment::new(Box::new(Nop {}), Duration::from_millis(200)),
+        //Nop {},
+        //TimedSegment::new(Box::new(Nop {}), Duration::from_millis(200)),
         ramsete_path /*RamsetePoint::new(
                          (Vec2::new(-350.0, -350.0), std::f64::consts::FRAC_PI_4),
                          ramsete
@@ -262,14 +261,10 @@ fn main() {
 
     //let mut drivebase_measurer = drivebase_measurer::DriveBaseMeasurer::new(75.0);
     //let mut odometry = odometry::Odometry::new(5);
-    let mut odom = odometry::Odom::new(
-        Vec2::new(-400.0, -400.0),
-        90.0f64.to_radians(),
-        &imu,
-        &drivebase,
-    );
+    let mut odom = odometry::Odom::new(Vec2::new(0.0, 0.0), 90.0f64.to_radians(), &imu, &drivebase);
 
     let mut latch_close: i8 = 0;
+    let mut at_volt = false;
 
     loop {
         let (pkt, just_updated) = brain.update_state(&mut controller);
@@ -279,32 +274,24 @@ fn main() {
         imu.update(&pkt);
         drivebase.update(&pkt);
         odom.update(&imu, &drivebase);
-        //drivebase_measurer.update(&pkt, &drivebase);
-        //odometry.update(imu.heading(), drivebase_measurer.get_distance());
 
         match path.follow(&odom, &mut imu_pid) {
             PathOutput::Voltages(_) => {
+                if at_volt == false {
+                    log::info!("switch to voltages");
+                }
+                at_volt = true;
                 drivebase.write_powers(controller.ly(), -controller.rx(), pkt_to_write);
             }
             PathOutput::LinearAngularVelocity(la) => {
+                if just_updated {
+                    log::info!("{la:?}");
+                }
                 drivebase.write_linear_angular_vel(la.x, la.y, pkt_to_write);
             }
         }
 
-        if just_updated {
-            //log::info!("{:?}", pkt.encoder_state);
-            log::info!("imu :{:?}", imu.heading());
-            log::info!("pkt.encoder_state: {:?}", pkt.encoder_state);
-            //log::info!("distance :{:?}", drivebase_measurer.get_avg_distance());
-            //log::info!("x y :{:?}", odometry.get_xy());
-            let _ = mediator.send_event(communication::packets::FromMain::Odometry(
-                odom.pos().into(),
-                odom.heading(),
-            ));
-            log::info!("latch :{:?}", latch_close);
-        }
-
-        //println!("{}", imu.heading());
+        if just_updated {}
 
         // intake
         if controller.pressed(RIGHT_TRIGGER_2) {
@@ -323,19 +310,6 @@ fn main() {
             pkt_to_write.set_motors[9] = MotorControl::Voltage(4.0);
         } else {
             pkt_to_write.set_motors[9] = MotorControl::BrakeHold;
-        }
-
-        if controller.pressed(A) {
-            imu_pid.set_target(imu.heading() + std::f64::consts::PI * 0.5);
-            track_pid = true;
-        } else if controller.pressed(B) {
-            track_pid = false;
-        }
-
-        if track_pid {
-            let rotate = imu_pid.poll(imu.heading());
-            drivebase.write_powers(0.0, -rotate, pkt_to_write);
-        } else {
         }
 
         //

@@ -219,8 +219,8 @@ impl PathSegment for RamsetePath {
             self.current_target = self.target.pop_front();
             if let Some(target) = self.current_target {
                 self.controller.set_target(target);
+                return self.follow(odom, angle_pid);
             }
-            return self.follow(odom, angle_pid);
         }
 
         PathOutput::LinearAngularVelocity(self.controller.output_linear_angular(odom))
