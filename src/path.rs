@@ -183,6 +183,58 @@ impl PathSegment for RamsetePoint {
 }
 
 #[derive(Debug)]
+pub struct RamsetePath {
+    target: VecDeque<(Vec2, f64)>,
+    current_target: Option<(Vec2, f64)>,
+    controller: Ramsete,
+}
+
+impl RamsetePath {
+    pub fn new<T: Into<VecDeque<(Vec2, f64)>>>(target: T, mut controller: Ramsete) -> Self {
+        let mut target: VecDeque<_> = target.into();
+        let current_target = target.pop_front();
+        if let Some(v) = current_target {
+            controller.set_target(v);
+        }
+        Self {
+            target,
+            current_target,
+            controller,
+        }
+    }
+}
+
+impl PathSegment for RamsetePath {
+    fn finished_transform(&self) -> bool {
+        true
+    }
+
+    fn start(&mut self, _: &Odom, _: &mut Pid) {}
+    fn follow(&mut self, odom: &Odom, angle_pid: &mut Pid) -> PathOutput {
+        let Some(target) = self.current_target else {
+            return PathOutput::Voltages(Vec2::ZERO);
+        };
+
+        if (odom.pos() - self.target.0).mag() < 50.0 {
+            self.current_target = self.target.pop_front();
+            if let Some(target) = self.current_target {
+                self.controller.set_target(target);
+            }
+            return self.follow(odom, angle_pid);
+        }
+
+        PathOutput::LinearAngularVelocity(self.controller.output_linear_angular(odom))
+    }
+
+    fn end_follow<'a>(&mut self, _: &Odom) -> Option<Vec<Box<dyn PathSegment + 'a>>> {
+        if self.current_target.is_none() {
+            return Some(Vec::new());
+        }
+        None
+    }
+}
+
+#[derive(Debug)]
 struct TurnTo {
     start_heading: f64,
     target_heading: f64,
