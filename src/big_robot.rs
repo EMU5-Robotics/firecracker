@@ -10,6 +10,7 @@ mod brain;
 mod controller;
 mod drivebase;
 mod imu;
+mod latch;
 mod modifier_path;
 mod odometry;
 mod path;
