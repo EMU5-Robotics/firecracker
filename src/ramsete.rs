@@ -5,21 +5,14 @@ use crate::{odometry::Odom, vec::Vec2};
 pub struct Ramsete {
     beta: f64,
     zeta: f64,
-    linear_velocity: f64,
-    angular_velocity: f64,
-    k: f64,
     target: (Vec2, f64),
 }
 
 impl Ramsete {
-    pub fn new(beta: f64, zeta: f64, linear_velocity: f64, angular_velocity: f64) -> Self {
-        let k = 2.0 * zeta * (angular_velocity.powi(2) + beta * linear_velocity.powi(2)).sqrt();
+    pub fn new(beta: f64, zeta: f64) -> Self {
         Self {
             beta,
             zeta,
-            linear_velocity,
-            angular_velocity,
-            k,
             target: (Vec2::ZERO, 0.0),
         }
     }
@@ -40,11 +33,16 @@ impl Ramsete {
         let error_heading = self.target.1 - heading;
 
         let (sin_error, cos_error) = error_heading.sin_cos();
+        let linear_velocity = 0.01 * error_pos[0];
+        let angular_velocity = 0.01 * error_heading;
+        let k = 2.0
+            * self.zeta
+            * (angular_velocity.powi(2) + self.beta * linear_velocity.powi(2)).sqrt();
 
-        let linear_vel = self.linear_velocity * cos_error + self.k * error_pos[0];
-        let angular_vel = self.angular_velocity
-            + self.k * error_heading
-            + (self.beta * self.linear_velocity * sin_error * error_pos[1]) / error_heading;
+        let linear_vel = linear_velocity * cos_error + k * error_pos[0];
+        let angular_vel = angular_velocity
+            + k * error_heading
+            + (self.beta * linear_velocity * sin_error * error_pos[1]) / error_heading;
 
         Vec2::new(linear_vel, angular_vel)
     }

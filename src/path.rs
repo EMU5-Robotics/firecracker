@@ -215,7 +215,7 @@ impl PathSegment for RamsetePath {
             return PathOutput::Voltages(Vec2::ZERO);
         };
 
-        if (odom.pos() - self.target.0).mag() < 50.0 {
+        if (odom.pos() - target.0).mag() < 50.0 {
             self.current_target = self.target.pop_front();
             if let Some(target) = self.current_target {
                 self.controller.set_target(target);
