@@ -5,6 +5,9 @@ use std::{
 
 use robot_serial::protocol::{AdiPortState, ConfigureAdiPort, MotorControl, ToBrain};
 
+use crate::path::PathSegment;
+
+#[derive(Debug, Clone)]
 pub enum Latch {
     Air {
         port: usize,
@@ -111,6 +114,59 @@ impl Latch {
                     pkt.set_motors[port - 1] = MotorControl::Voltage(-Self::VOLTAGE);
                 }
             }
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct LatchAction {
+    latch: Latch,
+    release: bool,
+    wrote: bool,
+}
+
+impl LatchAction {
+    pub fn new(latch: Latch, release: bool) -> Self {
+        Self {
+            latch,
+            release,
+            wrote: false,
+        }
+    }
+}
+
+impl PathSegment for LatchAction {
+    fn finished_transform(&self) -> bool {
+        true
+    }
+
+    fn start(&mut self, _: &crate::odometry::Odom, _: &mut crate::pid::Pid, pkt: &mut ToBrain) {}
+
+    fn follow(
+        &mut self,
+        _: &crate::odometry::Odom,
+        _: &mut crate::pid::Pid,
+        pkt: &mut ToBrain,
+    ) -> crate::path::PathOutput {
+        if self.release {
+            self.latch.release();
+        } else {
+            self.latch.grab()
+        }
+        self.latch.write_pkt(pkt);
+        self.wrote = true;
+        crate::path::PathOutput::Voltages(crate::vec::Vec2::ZERO)
+    }
+
+    fn end_follow<'a>(
+        &mut self,
+        _: &crate::odometry::Odom,
+        pkt: &mut ToBrain,
+    ) -> Option<Vec<Box<dyn PathSegment + 'a>>> {
+        if self.wrote {
+            Some(Vec::new())
+        } else {
+            None
         }
     }
 }

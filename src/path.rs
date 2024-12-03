@@ -1,7 +1,11 @@
+use robot_serial::protocol::{MotorControl, ToBrain};
+
 use crate::ramsete::Ramsete;
+use crate::TimedSegment;
 use crate::{odometry::Odom, pid::Pid, vec::Vec2};
 use std::collections::VecDeque;
 use std::f64::consts::{PI, TAU};
+use std::time::Duration;
 
 #[derive(Debug, Copy, Clone)]
 pub enum PathOutput {
@@ -49,7 +53,7 @@ impl From<Box<dyn PathSegment>> for Path {
 }
 
 impl Path {
-    fn transform_segments(&mut self, odom: &Odom, angle_pid: &mut Pid) {
+    fn transform_segments(&mut self, odom: &Odom, angle_pid: &mut Pid, pkt: &mut ToBrain) {
         if self.current_segment.is_some() {
             return;
         }
@@ -57,16 +61,16 @@ impl Path {
         while let Some(mut new_seg) = self.segments.pop_back() {
             if new_seg.finished_transform() {
                 log::info!("started new segment: {new_seg:?}");
-                new_seg.start(odom, angle_pid);
+                new_seg.start(odom, angle_pid, pkt);
                 self.current_segment = Some(new_seg);
                 return;
             }
             self.segments.extend(new_seg.transform(odom));
         }
     }
-    pub fn follow(&mut self, odom: &Odom, angle_pid: &mut Pid) -> PathOutput {
+    pub fn follow(&mut self, odom: &Odom, angle_pid: &mut Pid, pkt: &mut ToBrain) -> PathOutput {
         // get new segments if needed
-        self.transform_segments(odom, angle_pid);
+        self.transform_segments(odom, angle_pid, pkt);
 
         // exit when no segments could be transformed
         let Some(seg) = self.current_segment.as_mut() else {
@@ -74,7 +78,7 @@ impl Path {
         };
 
         // end segment and start next
-        if let Some(new_segments) = seg.end_follow(odom) {
+        if let Some(new_segments) = seg.end_follow(odom, pkt) {
             if new_segments.is_empty() {
                 log::info!("segment_ended: {seg:?} and added new segments: {new_segments:?}");
             } else {
@@ -82,14 +86,14 @@ impl Path {
             }
             self.segments.extend(new_segments);
             self.current_segment = None;
-            return self.follow(odom, angle_pid);
+            return self.follow(odom, angle_pid, pkt);
         }
 
-        seg.follow(odom, angle_pid)
+        seg.follow(odom, angle_pid, pkt)
     }
-    fn abrupt_end(&mut self, odom: &Odom) {
+    fn abrupt_end(&mut self, odom: &Odom, pkt: &mut ToBrain) {
         if let Some(seg) = self.current_segment.as_mut() {
-            seg.abrupt_end(odom);
+            seg.abrupt_end(odom, pkt);
         }
     }
     pub fn ended(&self) -> bool {
@@ -106,10 +110,14 @@ pub trait PathSegment: std::fmt::Debug {
         }
     }
     fn finished_transform(&self) -> bool;
-    fn start(&mut self, odom: &Odom, angle_pid: &mut Pid);
-    fn follow(&mut self, odom: &Odom, angle_pid: &mut Pid) -> PathOutput;
-    fn end_follow<'a>(&mut self, odom: &Odom) -> Option<Vec<Box<dyn PathSegment + 'a>>>;
-    fn abrupt_end(&mut self, _odom: &Odom) {}
+    fn start(&mut self, odom: &Odom, angle_pid: &mut Pid, pkt: &mut ToBrain);
+    fn follow(&mut self, odom: &Odom, angle_pid: &mut Pid, pkt: &mut ToBrain) -> PathOutput;
+    fn end_follow<'a>(
+        &mut self,
+        odom: &Odom,
+        pkt: &mut ToBrain,
+    ) -> Option<Vec<Box<dyn PathSegment + 'a>>>;
+    fn abrupt_end(&mut self, _odom: &Odom, pkt: &mut ToBrain) {}
     fn boxed_clone<'a>(&self) -> Box<dyn PathSegment + 'a> {
         panic!("This type is designed to not be clonable: {self:?}");
     }
@@ -119,19 +127,23 @@ impl PathSegment for Path {
     fn finished_transform(&self) -> bool {
         true
     }
-    fn start(&mut self, _: &Odom, _: &mut Pid) {}
-    fn follow(&mut self, odom: &Odom, angle_pid: &mut Pid) -> PathOutput {
-        Path::follow(self, odom, angle_pid)
+    fn start(&mut self, _: &Odom, _: &mut Pid, pkt: &mut ToBrain) {}
+    fn follow(&mut self, odom: &Odom, angle_pid: &mut Pid, pkt: &mut ToBrain) -> PathOutput {
+        Path::follow(self, odom, angle_pid, pkt)
     }
-    fn end_follow<'a>(&mut self, _: &Odom) -> Option<Vec<Box<dyn PathSegment + 'a>>> {
+    fn end_follow<'a>(
+        &mut self,
+        _: &Odom,
+        pkt: &mut ToBrain,
+    ) -> Option<Vec<Box<dyn PathSegment + 'a>>> {
         if self.ended() {
             Some(Vec::new())
         } else {
             None
         }
     }
-    fn abrupt_end(&mut self, odom: &Odom) {
-        Path::abrupt_end(self, odom);
+    fn abrupt_end(&mut self, odom: &Odom, pkt: &mut ToBrain) {
+        Path::abrupt_end(self, odom, pkt);
     }
     fn boxed_clone<'a>(&self) -> Box<dyn PathSegment + 'a> {
         Box::new(Self {
@@ -165,15 +177,19 @@ impl PathSegment for RamsetePoint {
         true
     }
 
-    fn start(&mut self, _: &Odom, _: &mut Pid) {
+    fn start(&mut self, _: &Odom, _: &mut Pid, pkt: &mut ToBrain) {
         self.controller.set_target(self.target);
     }
 
-    fn follow(&mut self, odom: &Odom, _: &mut Pid) -> PathOutput {
+    fn follow(&mut self, odom: &Odom, _: &mut Pid, pkt: &mut ToBrain) -> PathOutput {
         PathOutput::LinearAngularVelocity(self.controller.output_linear_angular(odom))
     }
 
-    fn end_follow<'a>(&mut self, odom: &Odom) -> Option<Vec<Box<dyn PathSegment + 'a>>> {
+    fn end_follow<'a>(
+        &mut self,
+        odom: &Odom,
+        pkt: &mut ToBrain,
+    ) -> Option<Vec<Box<dyn PathSegment + 'a>>> {
         // ignore angle since that's most likely unrecoverable
         if (odom.pos() - self.target.0).mag() < 50.0 {
             return Some(vec![]);
@@ -209,8 +225,8 @@ impl PathSegment for RamsetePath {
         true
     }
 
-    fn start(&mut self, _: &Odom, _: &mut Pid) {}
-    fn follow(&mut self, odom: &Odom, angle_pid: &mut Pid) -> PathOutput {
+    fn start(&mut self, _: &Odom, _: &mut Pid, pkt: &mut ToBrain) {}
+    fn follow(&mut self, odom: &Odom, angle_pid: &mut Pid, pkt: &mut ToBrain) -> PathOutput {
         let Some(target) = self.current_target else {
             return PathOutput::Voltages(Vec2::ZERO);
         };
@@ -226,14 +242,18 @@ impl PathSegment for RamsetePath {
             if let Some(target) = self.current_target {
                 log::error!("new ramsete target: {target:?}");
                 self.controller.set_target(target);
-                return self.follow(odom, angle_pid);
+                return self.follow(odom, angle_pid, pkt);
             }
         }
 
         PathOutput::LinearAngularVelocity(self.controller.output_linear_angular(odom))
     }
 
-    fn end_follow<'a>(&mut self, _: &Odom) -> Option<Vec<Box<dyn PathSegment + 'a>>> {
+    fn end_follow<'a>(
+        &mut self,
+        _: &Odom,
+        pkt: &mut ToBrain,
+    ) -> Option<Vec<Box<dyn PathSegment + 'a>>> {
         if self.current_target.is_none() {
             return Some(Vec::new());
         }
@@ -242,25 +262,33 @@ impl PathSegment for RamsetePath {
 }
 
 #[derive(Debug)]
-struct TurnTo {
-    start_heading: f64,
+pub struct TurnTo {
     target_heading: f64,
+}
+impl TurnTo {
+    pub fn new(target_heading: f64) -> Self {
+        Self { target_heading }
+    }
 }
 
 impl PathSegment for TurnTo {
     fn finished_transform(&self) -> bool {
         true
     }
-    fn start(&mut self, odom: &Odom, angle_pid: &mut Pid) {
+    fn start(&mut self, odom: &Odom, angle_pid: &mut Pid, pkt: &mut ToBrain) {
         self.target_heading = optimise_target_heading(odom.heading(), self.target_heading);
         angle_pid.set_target(self.target_heading);
         angle_pid.reset();
     }
-    fn follow(&mut self, odom: &Odom, angle_pid: &mut Pid) -> PathOutput {
+    fn follow(&mut self, odom: &Odom, angle_pid: &mut Pid, pkt: &mut ToBrain) -> PathOutput {
         let pow = angle_pid.poll(odom.heading());
         PathOutput::Voltages(Vec2::new(-pow, pow))
     }
-    fn end_follow<'a>(&mut self, odom: &Odom) -> Option<Vec<Box<dyn PathSegment + 'a>>> {
+    fn end_follow<'a>(
+        &mut self,
+        odom: &Odom,
+        pkt: &mut ToBrain,
+    ) -> Option<Vec<Box<dyn PathSegment + 'a>>> {
         if (odom.heading() - self.target_heading).abs() < 2f64.to_radians() {
             log::info!(
                 "Finished segment - TurnTo({}) with heading ({}).",
@@ -294,13 +322,17 @@ impl PathSegment for Ram {
     fn finished_transform(&self) -> bool {
         true
     }
-    fn start(&mut self, _: &Odom, _: &mut Pid) {
+    fn start(&mut self, _: &Odom, _: &mut Pid, pkt: &mut ToBrain) {
         self.start = std::time::Instant::now();
     }
-    fn follow(&mut self, _: &Odom, _: &mut Pid) -> PathOutput {
+    fn follow(&mut self, _: &Odom, _: &mut Pid, pkt: &mut ToBrain) -> PathOutput {
         PathOutput::Voltages(Vec2::splat(self.pow))
     }
-    fn end_follow<'a>(&mut self, _: &Odom) -> Option<Vec<Box<dyn PathSegment + 'a>>> {
+    fn end_follow<'a>(
+        &mut self,
+        _: &Odom,
+        pkt: &mut ToBrain,
+    ) -> Option<Vec<Box<dyn PathSegment + 'a>>> {
         if self.start.elapsed() > self.dur {
             return Some(Vec::new());
         }
@@ -308,6 +340,51 @@ impl PathSegment for Ram {
     }
     fn boxed_clone<'a>(&self) -> Box<dyn PathSegment + 'a> {
         Box::new(self.clone())
+    }
+}
+#[derive(Debug, Clone)]
+pub struct PowerMotors {
+    motors: Vec<usize>,
+    pow: MotorControl,
+}
+impl PowerMotors {
+    pub fn new(motors: Vec<usize>, pow: MotorControl) -> Self {
+        Self { motors, pow }
+    }
+}
+
+impl PathSegment for PowerMotors {
+    fn finished_transform(&self) -> bool {
+        true
+    }
+
+    fn start(&mut self, _: &crate::odometry::Odom, _: &mut crate::pid::Pid, pkt: &mut ToBrain) {}
+
+    fn follow(
+        &mut self,
+        _: &crate::odometry::Odom,
+        _: &mut crate::pid::Pid,
+        pkt: &mut ToBrain,
+    ) -> crate::path::PathOutput {
+        for motor_idx in &self.motors {
+            pkt.set_motors[motor_idx - 1] = self.pow;
+        }
+        crate::path::PathOutput::Voltages(crate::vec::Vec2::ZERO)
+    }
+    fn abrupt_end(&mut self, _odom: &Odom, pkt: &mut ToBrain) {
+        for motor_idx in &self.motors {
+            pkt.set_motors[motor_idx - 1] = MotorControl::BrakeCoast;
+        }
+    }
+    fn end_follow<'a>(
+        &mut self,
+        _: &crate::odometry::Odom,
+        pkt: &mut ToBrain,
+    ) -> Option<Vec<Box<dyn PathSegment + 'a>>> {
+        for motor_idx in &self.motors {
+            pkt.set_motors[motor_idx - 1] = MotorControl::BrakeCoast;
+        }
+        None
     }
 }
 
