@@ -91,13 +91,24 @@ fn main() {
 
     let mut angle_pid = pid::Pid::new(0.55, 0.055, 2.2);
 
+    // init time is used to wait for the robot to settl
+    let init_time = std::time::Instant::now();
+
     loop {
         let (pkt, is_updated) = brain.update_state(&mut controller);
         let pkt_to_write = brain.get_brain_pkt();
 
+        // wait for the robot to settle, imu to warm up
+        if init_time.elapsed() < Duration::from_secs(2) {
+            // change nothing
+            brain.write_changes();
+            continue;
+        }
+        
         imu.update(&pkt);
         drivebase.update(&pkt);
         odom.update(&imu, &drivebase);
+        
         if is_updated {
             log::info!("{:.2?} {:.2?}", odom.heading(), imu.heading());
         }
@@ -115,7 +126,7 @@ fn main() {
             drivebase.write_powers(controller.ly(), -controller.rx(), pkt_to_write);
         }*/
 
-        //
+//
         brain.write_changes();
     }
 }
