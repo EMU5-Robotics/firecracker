@@ -1,7 +1,6 @@
 use std::time::{Duration, Instant};
-
 use crate::{drivebase::Drivebase, imu::Imu, vec::Vec2};
-
+use robot_serial::protocol::ToRobot;
 pub struct Odom {
     start_pos: Vec2,
     start_heading: f64,
@@ -10,6 +9,7 @@ pub struct Odom {
     last_update: Instant,
     last_distances: Vec2,
     velocity: f64,
+    last_pkt: Option<ToRobot>,
 }
 
 impl Odom {
@@ -30,12 +30,14 @@ impl Odom {
             last_distances: drivebase.side_distances(),
             last_update: Instant::now(),
             velocity: 0.0,
+            last_pkt: None,
         }
     }
-    pub fn update<const N: usize>(&mut self, imu: &Imu, drivebase: &Drivebase<N>) {
+    pub fn update<const N: usize>(&mut self, imu: &Imu, drivebase: &Drivebase<N>, pkt: &ToRobot) {
         if self.last_update.elapsed() < Self::UPDATE_RATE {
             return;
         }
+        self.last_pkt = Some(pkt.clone());
 
         let lr = drivebase.side_distances();
         let Vec2 { x: l, y: r } = lr;
@@ -93,6 +95,9 @@ impl Odom {
     }
     pub fn velocity(&self) -> f64 {
         self.velocity
+    }
+    pub fn last_pkt(&self) -> Option<&ToRobot> {
+        self.last_pkt.as_ref()
     }
 }
 /*#[derive(Debug)]

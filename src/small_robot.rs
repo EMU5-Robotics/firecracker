@@ -1,10 +1,10 @@
-use std::{f64::consts::{FRAC_PI_2, PI}, iter::TrustedLen, time::Duration};
+use std::{f64::consts::{FRAC_PI_2, PI}, fs::OpenOptions, time::Duration};
 
 use communication::RobotInfo;
 use imu::Imu;
 use latch::LatchAction;
 use modifier_path::{Nop, TimedSegment, WhileSegment};
-use path::{PathSegment, PowerMotors, Ram, TurnTo};
+use path::{PathSegment, PowerMotors, Ram, SwitchController, TurnTo};
 use robot_serial::protocol::{controller::*, *};
 use vec::Vec2;
 
@@ -19,6 +19,10 @@ mod path;
 mod pid;
 mod ramsete;
 mod vec;
+mod shaking_motor;
+    
+const FRONT_INTAKE_PORT: usize = 5;
+const BACK_INTAKE_PORT: usize = 6;
 
 // cartesion coordinate space
 
@@ -41,43 +45,36 @@ fn main() {
     let front_latch_attach = LatchAction::new(front_latch.clone(), false);
     let back_latch_release = LatchAction::new(back_latch.clone(), true); 
     let back_latch_attach = LatchAction::new(back_latch.clone(),false);
-
-    let first_intake = WhileSegment::new(
-        path!(Ram::new(0.5, Duration::from_millis(560))),
-        path!(PowerMotors::new(vec![5], MotorControl::Voltage(-12.0))),
-        true,
-    );
-    let second_intake = WhileSegment::new(
-        path!(Ram::new(0.5, Duration::from_millis(500))),
-        path!(PowerMotors::new(vec![5, 6], MotorControl::Voltage(12.0))),
-        true,
-    );
-
-    let third_intake = WhileSegment::new(
-        path!(Ram::new(0.5, Duration::from_millis(500))),
-        path!(PowerMotors::new(vec![5, 6], MotorControl::Voltage(12.0))),
-        true,
-    );
-
-    let raise_stage_one = LatchAction::new(front_latch.clone(), false);
+    
 
     let wait_n = |v: Duration| {
         TimedSegment::new(Box::new(Nop {}), v)
     };
 
-    let mut auton_path = path!(
-
-        // init the front latch 
+    /* 
+    let mut sk_motor = shaking_motor::ShakingMotor::new(
+        6,
+         Duration::from_millis(30),
+          0.01,
+           Duration::from_millis(100));
+    sk_motor.set_power(-0.5);
+    */ 
+    
+    let init_front_latch = path!( 
         front_latch_attach.clone(),
         wait_n(Duration::from_secs(1)),
         front_latch_release.clone(),
         wait_n(Duration::from_secs(1)),
+    );
+ 
+    let get_first_ring = 
+        path!(Ram::new(0.5, Duration::from_millis(560)));
 
-        // intake rings while moving forward
-        first_intake,
+
+    let score_two_rings = path!( 
         // turn left to align backwards with mobile goal
         TurnTo::new(FRAC_PI_2),
-
+         
         back_latch_release.clone(),
         // go backwards to mobile goal
         Ram::new(-0.2, Duration::from_millis(7000)),
@@ -86,74 +83,108 @@ fn main() {
 
         // score 2x ringsTimedSegment::new(
         TimedSegment::new(
-            Box::new(PowerMotors::new(vec![5,6], MotorControl::Voltage(-12.0))),
+            Box::new(PowerMotors::new(vec![6], MotorControl::Voltage(-12.0))),
             Duration::from_millis(3000),
         ),
+    );
 
-        // turn to the Last Ring
-        TurnTo::new(0.75 * PI),
+    let stage_one = WhileSegment::new(
+        path!(get_first_ring, score_two_rings), 
+        path!(PowerMotors::new(vec![5], MotorControl::Voltage(-12.0))),
+        true,
+    );
+
+    let turn_to_last_ring = path!( 
+        TurnTo::new(0.75 * PI), 
         // release the moveble goal
         back_latch_release.clone(),
-        // take the last ring
-        third_intake,
+    );
 
-        // Option B 
-        // turn so back is facing wall stake
-        TurnTo::new(5.0f64.to_radians()),
-        // slowly reverse into wall stake
-        Ram::new(-0.1, Duration::from_millis(2000)),
-        // score ring
+    let get_last_ring = path!(Ram::new(0.5, Duration::from_millis(500)));
+
+    let stage_two = WhileSegment::new(
+        path!(turn_to_last_ring, get_last_ring, wait_n(Duration::from_secs(1))), 
+        path!(PowerMotors::new(vec![5], MotorControl::Voltage(-12.0))),
+        true,
+    );
+
+    let turn_to_wall_stake = path!(TurnTo::new(5.0f64.to_radians()));
+    let ram_into_wall_stake = path!(Ram::new(-0.1, Duration::from_millis(2000)));
+    let score_last_ring = path!(
         TimedSegment::new(
             Box::new(PowerMotors::new(vec![5,6], MotorControl::Voltage(-12.0))),
             Duration::from_millis(3000),
-        ),
-        
-        // face to the ladder
-        TurnTo::new(0.0),
-        // walk to the ladder
-        Ram::new(0.1, Duration::from_millis(1500)),
-        
+        )
+    );
+    let turn_to_ladder = path!(TurnTo::new(0.0));
+    let ram_into_ladder = path!(Ram::new(0.2, Duration::from_millis(1500)));
 
-        // Option C 
-        // turn to new point (backwards)
-        TurnTo::new(-135.0f64.to_radians()),
-        // move backwards to new point
-        Ram::new(-0.1, Duration::from_millis(1500)),
-        // turn to new point 2 
-        TurnTo::new(-170.0f64.to_radians()), 
-        
+    let option_b = path!(
+        turn_to_wall_stake,
+        ram_into_wall_stake,
+        score_last_ring,
+        turn_to_ladder,
+        ram_into_ladder,
+    );  
+
+    let turn_to_new_point = path!(TurnTo::new(-135.0f64.to_radians()));
+    let ram_to_new_point = path!(Ram::new(-0.1, Duration::from_millis(1500)));
+    let turn_to_new_point_two = path!(TurnTo::new(-170.0f64.to_radians()));
+    let score_last_ring = path!(
         back_latch_release.clone(),
-        // go backwards to mobile goal
         Ram::new(-0.2, Duration::from_millis(1500)),
-        // latch onto goal
         back_latch_attach.clone(),
-        // score ring
         TimedSegment::new(
-            Box::new(PowerMotors::new(vec![5,6], MotorControl::Voltage(-12.0))),
+            Box::new(PowerMotors::new(vec![6], MotorControl::Voltage(-12.0))),
             Duration::from_millis(3000),
+        )
+    );
+    let turn_to_ladder = path!(
+        TurnTo::new(90.0f64.to_radians()), 
+        back_latch_release.clone());
+    let ram_to_ladder = path!(Ram::new(0.2, Duration::from_millis(1500)));
+    
+
+    let option_c = path!(
+        turn_to_new_point,
+        ram_to_new_point,
+        turn_to_new_point_two,
+        WhileSegment::new(
+            score_last_ring, 
+            path!(PowerMotors::new(vec![5], MotorControl::Voltage(-12.0))),
+            true,
         ),
- 
-        // turn to new point 2 
-        TurnTo::new(90.0f64.to_radians()),
-        // release the latch.
-        back_latch_release.clone(),
-        // go the ladder!!!! 
-        Ram::new(0.2, Duration::from_millis(1500)), 
+        turn_to_ladder,
+        ram_to_ladder,
+    ); 
         
-        /*
-        // release goal
-        latch_release,
-        // intake rings
-        second_intake,
-        // turn around to line up with wall stake
-        TurnTo::new(0.0),
-        // ram into wall stack
-        Ram::new(-0.5, Duration::from_millis(200)),
-        // score
-        TimedSegment::new(
-            Box::new(PowerMotors::new(vec![6], MotorControl::Voltage(12.0))),
-            Duration::from_millis(500),
-        ),*/
+    let mut auton_path = path!(
+       /*  
+        TimedSegment::new(Box::new(sk_motor.clone()), Duration::from_secs(3)),
+        SwitchController {},
+       */ 
+
+        // init the front latch 
+        init_front_latch,
+
+        // auton stage one
+        // get first ring and score two rings
+        stage_one,
+
+        // auton stage two
+        // turn to last ring and get last ring
+        stage_two,
+
+        // option b
+        // turn to wall stake, ram into wall stake
+        // score ring, turn to ladder, ram into ladder
+        option_b,
+
+        // option c
+        // turn to new point, ram into new point, turn to new point 2
+        // score last ring, turn to ladder, ram into ladder
+        option_c,
+
     );
     let mut imu = Imu::new(4);
     let mut odom = odometry::Odom::new(Vec2::ZERO, 0.0, &imu, &drivebase);
@@ -183,9 +214,10 @@ fn main() {
             continue;
         }
         
+        
         imu.update(&pkt);
         drivebase.update(&pkt);
-        odom.update(&imu, &drivebase);
+        odom.update(&imu, &drivebase, &pkt);
         
         if is_updated {
             log::info!("{:.2?} {:.2?} {:.2?}", odom.heading(), imu.heading(), 

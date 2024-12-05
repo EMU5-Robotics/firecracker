@@ -1,7 +1,7 @@
 use robot_serial::protocol::{MotorControl, ToBrain};
 
 use crate::ramsete::Ramsete;
-use crate::TimedSegment;
+use crate::modifier_path::TimedSegment;
 use crate::{odometry::Odom, pid::Pid, vec::Vec2};
 use std::collections::VecDeque;
 use std::f64::consts::{PI, TAU};
@@ -359,10 +359,15 @@ impl PathSegment for Ram {
 pub struct PowerMotors {
     motors: Vec<usize>,
     pow: MotorControl,
+    shaking: Vec<usize>,
 }
 impl PowerMotors {
     pub fn new(motors: Vec<usize>, pow: MotorControl) -> Self {
-        Self { motors, pow }
+        Self { 
+            motors, 
+            pow, 
+            shaking: vec![0]
+        }
     }
 }
 
