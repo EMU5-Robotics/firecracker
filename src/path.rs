@@ -11,6 +11,7 @@ use std::time::{Duration, Instant};
 pub enum PathOutput {
     Voltages(Vec2),
     LinearAngularVelocity(Vec2),
+    SwitchToDriver,
 }
 
 #[derive(Debug)]
@@ -398,6 +399,36 @@ impl PathSegment for PowerMotors {
         }
         None
     }
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct SwitchController {}
+
+impl PathSegment for SwitchController {
+    fn finished_transform(&self) -> bool {
+        true
+    }
+
+    fn start(&mut self, _: &crate::odometry::Odom, _: &mut crate::pid::Pid, pkt: &mut ToBrain) {}
+
+    fn follow(
+        &mut self,
+        _: &crate::odometry::Odom,
+        _: &mut crate::pid::Pid,
+        pkt: &mut ToBrain,
+    ) -> crate::path::PathOutput {
+        crate::path::PathOutput::SwitchToDriver
+    }
+    fn abrupt_end(&mut self, _odom: &Odom, pkt: &mut ToBrain) {
+    }
+    fn end_follow<'a>(
+        &mut self,
+        _: &crate::odometry::Odom,
+        pkt: &mut ToBrain,
+    ) -> Option<Vec<Box<dyn PathSegment + 'a>>> {
+        None
+    }
+    
 }
 
 fn optimise_target_heading(heading: f64, target: f64) -> f64 {

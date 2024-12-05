@@ -1,4 +1,4 @@
-use std::{f64::consts::FRAC_PI_2, f64::consts::PI, time::Duration};
+use std::{f64::consts::{FRAC_PI_2, PI}, iter::TrustedLen, time::Duration};
 
 use communication::RobotInfo;
 use imu::Imu;
@@ -68,11 +68,10 @@ fn main() {
     let mut auton_path = path!(
 
         // init the front latch 
-        //front_latch_release.clone(),
         front_latch_attach.clone(),
         wait_n(Duration::from_secs(1)),
         front_latch_release.clone(),
-
+        wait_n(Duration::from_secs(1)),
 
         // intake rings while moving forward
         first_intake,
@@ -91,14 +90,56 @@ fn main() {
             Duration::from_millis(3000),
         ),
 
-        back_latch_release.clone(),
-
         // turn to the Last Ring
         TurnTo::new(0.75 * PI),
-
+        // release the moveble goal
+        back_latch_release.clone(),
         // take the last ring
         third_intake,
 
+        // Option B 
+        // turn so back is facing wall stake
+        TurnTo::new(5.0f64.to_radians()),
+        // slowly reverse into wall stake
+        Ram::new(-0.1, Duration::from_millis(2000)),
+        // score ring
+        TimedSegment::new(
+            Box::new(PowerMotors::new(vec![5,6], MotorControl::Voltage(-12.0))),
+            Duration::from_millis(3000),
+        ),
+        
+        // face to the ladder
+        TurnTo::new(0.0),
+        // walk to the ladder
+        Ram::new(0.1, Duration::from_millis(1500)),
+        
+
+        // Option C 
+        // turn to new point (backwards)
+        TurnTo::new(-135.0f64.to_radians()),
+        // move backwards to new point
+        Ram::new(-0.1, Duration::from_millis(1500)),
+        // turn to new point 2 
+        TurnTo::new(-170.0f64.to_radians()), 
+        
+        back_latch_release.clone(),
+        // go backwards to mobile goal
+        Ram::new(-0.2, Duration::from_millis(1500)),
+        // latch onto goal
+        back_latch_attach.clone(),
+        // score ring
+        TimedSegment::new(
+            Box::new(PowerMotors::new(vec![5,6], MotorControl::Voltage(-12.0))),
+            Duration::from_millis(3000),
+        ),
+ 
+        // turn to new point 2 
+        TurnTo::new(90.0f64.to_radians()),
+        // release the latch.
+        back_latch_release.clone(),
+        // go the ladder!!!! 
+        Ram::new(0.2, Duration::from_millis(1500)), 
+        
         /*
         // release goal
         latch_release,
@@ -129,6 +170,7 @@ fn main() {
     // init time is used to wait for the robot to settl
     let init_time = std::time::Instant::now();
     let mut manually_ctrl = false;
+    let mut finished = false;
 
     loop {
         let (pkt, is_updated) = brain.update_state(&mut controller);
@@ -165,14 +207,20 @@ fn main() {
         //
         //
         //if let CompState::Auton(_) = pkt.comp_state { 
-        
-        let out = auton_path.follow(&mut odom, &mut angle_pid, pkt_to_write);
-        match out {
-            path::PathOutput::Voltages(v) => drivebase.write_volage(v.x, v.y, pkt_to_write),
-            path::PathOutput::LinearAngularVelocity(lr) => {
-                drivebase.write_powers(lr.x, lr.y, pkt_to_write)
+        if !finished {
+            let out = auton_path.follow(&mut odom, &mut angle_pid, pkt_to_write);
+            match out {
+                path::PathOutput::Voltages(v) => drivebase.write_volage(v.x, v.y, pkt_to_write),
+                path::PathOutput::LinearAngularVelocity(lr) => {
+                    drivebase.write_powers(lr.x, lr.y, pkt_to_write)
+                }
+                path::PathOutput::SwitchToDriver => {
+                    finished = true
+                }
             }
-        }if manually_ctrl{
+        }
+        
+        if manually_ctrl || finished{
 
             drivebase.write_powers(controller.ly(), -controller.rx(), pkt_to_write);
             }
