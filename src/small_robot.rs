@@ -1,6 +1,5 @@
 use std::{
     f64::consts::{FRAC_PI_2, PI},
-    fs::OpenOptions,
     time::Duration,
 };
 
@@ -8,8 +7,8 @@ use communication::RobotInfo;
 use imu::Imu;
 use latch::LatchAction;
 use modifier_path::{Nop, TimedSegment, WhileSegment};
-use path::{PathSegment, PowerMotors, Ram, SwitchController, TurnTo};
-use robot_serial::protocol::{controller::*, *};
+use path::{PowerMotors, Ram, TurnTo};
+use robot_serial::protocol::*;
 use vec::Vec2;
 
 mod brain;
@@ -24,9 +23,6 @@ mod pid;
 mod ramsete;
 mod shaking_motor;
 mod vec;
-
-const FRONT_INTAKE_PORT: usize = 5;
-const BACK_INTAKE_PORT: usize = 6;
 
 // cartesion coordinate space
 
@@ -51,15 +47,6 @@ fn main() {
     let back_latch_attach = LatchAction::new(back_latch.clone(), false);
 
     let wait_n = |v: Duration| TimedSegment::new(Box::new(Nop {}), v);
-
-    /*
-    let mut sk_motor = shaking_motor::ShakingMotor::new(
-        6,
-         Duration::from_millis(30),
-          0.01,
-           Duration::from_millis(100));
-    sk_motor.set_power(-0.5);
-    */
 
     let init_front_latch = path!(
         front_latch_attach.clone(),
@@ -158,12 +145,7 @@ fn main() {
     );
 
     let mut auton_path = path!(
-        /*
-         TimedSegment::new(Box::new(sk_motor.clone()), Duration::from_secs(3)),
-         SwitchController {},
-        */
-
-         // init the front latch
+        // init the front latch
         init_front_latch,
         // auton stage one
         // get first ring and score two rings
@@ -183,21 +165,15 @@ fn main() {
     let mut imu = Imu::new(4);
     let mut odom = odometry::Odom::new(Vec2::ZERO, 0.0, &imu, &drivebase);
 
-    //let mut angle_pid = pid::Pid::new(0.55, 0.055, 2.2);
-    //0.8, 1.2, 0.0
-    //let mut angle_pid = pid::Pid::new(0.5, 3.5, 0.);
-
     // for now, the best arguments
     let mut angle_pid = pid::Pid::new(0.5, 0.8, 0.);
-    let mut pid_test_count = 0;
 
     // init time is used to wait for the robot to settl
     let init_time = std::time::Instant::now();
-    let mut manually_ctrl = false;
     let mut finished = false;
 
     loop {
-        let (pkt, is_updated) = brain.update_state(&mut controller);
+        let (pkt, _is_updated) = brain.update_state(&mut controller);
         let pkt_to_write = brain.get_brain_pkt();
 
         // wait for the robot to settle, imu to warm up
@@ -211,46 +187,22 @@ fn main() {
         drivebase.update(&pkt);
         odom.update(&imu, &drivebase, &pkt);
 
-        if is_updated {
-            log::info!(
-                "{:.2?} {:.2?} {:.2?}",
-                odom.heading(),
-                imu.heading(),
-                (90.0f64.to_radians() * pid_test_count as f64 - odom.heading()).to_degrees()
-            );
-        }
-
-        /*if controller.pressed(A) {
-            pid_test_count += 1;
-            angle_pid.set_target(odom.heading() + 90.0f64.to_radians());
-        }*/
-
-        if controller.pressed(Y) {
-            manually_ctrl = !manually_ctrl;
-        }
-
-        //let pow = angle_pid.poll(odom.heading());
-        //drivebase.write_volage(-pow, pow, pkt_to_write);
-        //
-        //
-        //if let CompState::Auton(_) = pkt.comp_state {
-        if !finished {
-            let out = auton_path.follow(&mut odom, &mut angle_pid, pkt_to_write);
-            match out {
-                path::PathOutput::Voltages(v) => drivebase.write_volage(v.x, v.y, pkt_to_write),
-                path::PathOutput::LinearAngularVelocity(lr) => {
-                    drivebase.write_powers(lr.x, lr.y, pkt_to_write)
+        if let CompState::Auton(_) = pkt.comp_state {
+            if !finished {
+                let out = auton_path.follow(&mut odom, &mut angle_pid, pkt_to_write);
+                match out {
+                    path::PathOutput::Voltages(v) => drivebase.write_volage(v.x, v.y, pkt_to_write),
+                    path::PathOutput::LinearAngularVelocity(lr) => {
+                        drivebase.write_powers(lr.x, lr.y, pkt_to_write)
+                    }
+                    path::PathOutput::SwitchToDriver => finished = true,
                 }
-                path::PathOutput::SwitchToDriver => finished = true,
             }
         }
 
-        if manually_ctrl || finished {
+        if finished || pkt.comp_state == CompState::Driver {
             drivebase.write_powers(controller.ly(), -controller.rx(), pkt_to_write);
         }
-        /*} else {
-            drivebase.write_powers(controller.ly(), -controller.rx(), pkt_to_write);
-        }*/
 
         //
         brain.write_changes();

@@ -26,7 +26,7 @@ use vec::Vec2;
 //
 
 fn main() {
-    let mut mediator =
+    /*let mut mediator =
         communication::Logger::try_init(RobotInfo::new("big robot", 0.705, 0.45), true).unwrap();
     let (mut brain, mut controller) = brain::Brain::init();
 
@@ -325,5 +325,6 @@ fn main() {
 
         //
         brain.write_changes();
-    }
+    }*/
+    todo!();
 }
