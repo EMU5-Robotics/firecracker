@@ -8,7 +8,7 @@ use imu::Imu;
 use latch::LatchAction;
 use modifier_path::{Nop, TimedSegment, WhileSegment};
 use path::{PowerMotors, Ram, TurnTo};
-use robot_serial::protocol::*;
+use robot_serial::protocol::{controller::*, *};
 use vec::Vec2;
 
 mod brain;
@@ -39,8 +39,8 @@ fn main() {
         75.0,
     );
 
-    let front_latch = latch::Latch::new_air(8, false);
-    let back_latch = latch::Latch::new_air(7, false);
+    let mut front_latch = latch::Latch::new_air(8, false);
+    let mut back_latch = latch::Latch::new_air(7, false);
     let front_latch_release = LatchAction::new(front_latch.clone(), true);
     let front_latch_attach = LatchAction::new(front_latch.clone(), false);
     let back_latch_release = LatchAction::new(back_latch.clone(), true);
@@ -171,6 +171,7 @@ fn main() {
     // init time is used to wait for the robot to settl
     let init_time = std::time::Instant::now();
     let mut finished = false;
+    let mut reversed = false;
 
     loop {
         let (pkt, _is_updated) = brain.update_state(&mut controller);
@@ -191,7 +192,9 @@ fn main() {
             if !finished {
                 let out = auton_path.follow(&mut odom, &mut angle_pid, pkt_to_write);
                 match out {
-                    path::PathOutput::Voltages(v) => drivebase.write_volage(v.x, v.y, pkt_to_write),
+                    path::PathOutput::Voltages(v) => {
+                        drivebase.write_voltage(v.x, v.y, pkt_to_write)
+                    }
                     path::PathOutput::LinearAngularVelocity(lr) => {
                         drivebase.write_powers(lr.x, lr.y, pkt_to_write)
                     }
@@ -201,7 +204,44 @@ fn main() {
         }
 
         if finished || pkt.comp_state == CompState::Driver {
-            drivebase.write_powers(controller.ly(), -controller.rx(), pkt_to_write);
+            if controller.pressed(DOWN) {
+                reversed = !reversed;
+            }
+
+            let mut forward = controller.ly();
+            let turn = controller.rx();
+            if reversed {
+                forward = -forward;
+            }
+            drivebase.write_voltage(forward + turn.powi(3), forward - turn.powi(3), pkt_to_write);
+
+            match (
+                controller.held(LEFT_TRIGGER_1),
+                controller.held(LEFT_TRIGGER_2),
+            ) {
+                (true, false) => pkt_to_write.set_motors[5] = MotorControl::Voltage(-12.0),
+                (false, true) => pkt_to_write.set_motors[5] = MotorControl::Voltage(12.0),
+                _ => pkt_to_write.set_motors[5] = MotorControl::BrakeBrake,
+            }
+
+            match (
+                controller.held(RIGHT_TRIGGER_1),
+                controller.held(RIGHT_TRIGGER_2),
+            ) {
+                (true, false) => pkt_to_write.set_motors[6] = MotorControl::Voltage(-12.0),
+                (false, true) => pkt_to_write.set_motors[6] = MotorControl::Voltage(12.0),
+                _ => pkt_to_write.set_motors[6] = MotorControl::BrakeCoast,
+            }
+
+            if controller.pressed(B) {
+                front_latch.toggle();
+            }
+
+            if controller.pressed(A) {
+                back_latch.toggle();
+            }
+            front_latch.write_pkt(pkt_to_write);
+            back_latch.write_pkt(pkt_to_write);
         }
 
         //

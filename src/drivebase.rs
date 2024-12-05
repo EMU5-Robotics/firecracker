@@ -33,7 +33,7 @@ impl<const N: usize> Drivebase<N> {
             radians_to_mil,
         }
     }
-    pub fn write_volage(&self, left: f64, right: f64, brain_pkt: &mut ToBrain) {
+    pub fn write_voltage(&self, left: f64, right: f64, brain_pkt: &mut ToBrain) {
         let map_voltage = |power: f64, rev: bool| -> MotorControl {
             if power == 0.0 {
                 return self.brakemode;
@@ -57,7 +57,7 @@ impl<const N: usize> Drivebase<N> {
         let left_side = forward - (rotate * rotate) * rotate.signum();
         let right_side = forward + (rotate * rotate) * rotate.signum();
 
-        self.write_volage(left_side, right_side, brain_pkt);
+        self.write_voltage(left_side, right_side, brain_pkt);
     }
     // see https://wiki.purduesigbots.com/software/control-algorithms/ramsete#commanding-the-robot
     // note for us we rotate counterclockwise
