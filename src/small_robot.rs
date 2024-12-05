@@ -3,7 +3,7 @@ use std::{f64::consts::FRAC_PI_2, f64::consts::PI, time::Duration};
 use communication::RobotInfo;
 use imu::Imu;
 use latch::LatchAction;
-use modifier_path::{TimedSegment, WhileSegment};
+use modifier_path::{Nop, TimedSegment, WhileSegment};
 use path::{PathSegment, PowerMotors, Ram, TurnTo};
 use robot_serial::protocol::{controller::*, *};
 use vec::Vec2;
@@ -35,43 +35,71 @@ fn main() {
         75.0,
     );
 
-    let latch = latch::Latch::new_air(7, false);
-    let latch_two = latch::Latch::new_air(8, false);
+    let front_latch = latch::Latch::new_air(8, false);
+    let back_latch = latch::Latch::new_air(7, false);
+    let front_latch_release = LatchAction::new(front_latch.clone(), true); 
+    let front_latch_attach = LatchAction::new(front_latch.clone(), false);
+    let back_latch_release = LatchAction::new(back_latch.clone(), true); 
+    let back_latch_attach = LatchAction::new(back_latch.clone(),false);
 
     let first_intake = WhileSegment::new(
-        path!(Ram::new(0.5, Duration::from_millis(600))),
-        path!(PowerMotors::new(vec![5, 6], MotorControl::Voltage(-12.0))),
+        path!(Ram::new(0.5, Duration::from_millis(560))),
+        path!(PowerMotors::new(vec![5], MotorControl::Voltage(-12.0))),
         true,
     );
     let second_intake = WhileSegment::new(
         path!(Ram::new(0.5, Duration::from_millis(500))),
         path!(PowerMotors::new(vec![5, 6], MotorControl::Voltage(12.0))),
-        false,
+        true,
     );
 
-    let raise_stage_one = LatchAction::new(latch.clone(), false);
+    let third_intake = WhileSegment::new(
+        path!(Ram::new(0.5, Duration::from_millis(500))),
+        path!(PowerMotors::new(vec![5, 6], MotorControl::Voltage(12.0))),
+        true,
+    );
 
-    let latch_release = LatchAction::new(latch_two.clone(), false);
-    let latch_goal = LatchAction::new(latch_two.clone(), false);
+    let raise_stage_one = LatchAction::new(front_latch.clone(), false);
+
+    let wait_n = |v: Duration| {
+        TimedSegment::new(Box::new(Nop {}), v)
+    };
 
     let mut auton_path = path!(
-        // ensure latch is free
-        //latch_release.clone(),
+
+        // init the front latch 
+        //front_latch_release.clone(),
+        front_latch_attach.clone(),
+        wait_n(Duration::from_secs(1)),
+        front_latch_release.clone(),
+
+
         // intake rings while moving forward
-        //first_intake,
+        first_intake,
         // turn left to align backwards with mobile goal
         TurnTo::new(FRAC_PI_2),
+
+        back_latch_release.clone(),
         // go backwards to mobile goal
-        /*Ram::new(-0.5, Duration::from_millis(500)),
+        Ram::new(-0.2, Duration::from_millis(7000)),
         // latch onto goal
-        latch_goal,
+        back_latch_attach.clone(),
+
         // score 2x ringsTimedSegment::new(
         TimedSegment::new(
-            Box::new(PowerMotors::new(vec![6], MotorControl::Voltage(12.0))),
-            Duration::from_millis(500),
+            Box::new(PowerMotors::new(vec![5,6], MotorControl::Voltage(-12.0))),
+            Duration::from_millis(3000),
         ),
-        // turn to wall stake
-        TurnTo::new(PI),
+
+        back_latch_release.clone(),
+
+        // turn to the Last Ring
+        TurnTo::new(0.75 * PI),
+
+        // take the last ring
+        third_intake,
+
+        /*
         // release goal
         latch_release,
         // intake rings
@@ -86,7 +114,7 @@ fn main() {
             Duration::from_millis(500),
         ),*/
     );
-    let mut imu = Imu::new(15);
+    let mut imu = Imu::new(4);
     let mut odom = odometry::Odom::new(Vec2::ZERO, 0.0, &imu, &drivebase);
 
     //let mut angle_pid = pid::Pid::new(0.55, 0.055, 2.2);
@@ -100,6 +128,7 @@ fn main() {
 
     // init time is used to wait for the robot to settl
     let init_time = std::time::Instant::now();
+    let mut manually_ctrl = false;
 
     loop {
         let (pkt, is_updated) = brain.update_state(&mut controller);
@@ -122,23 +151,31 @@ fn main() {
         );
         }
 
-        if controller.pressed(A) {
+        /*if controller.pressed(A) {
             pid_test_count += 1;
             angle_pid.set_target(odom.heading() + 90.0f64.to_radians());
+        }*/
+
+        if controller.pressed(Y){
+            manually_ctrl = !manually_ctrl;
         }
 
-        let pow = angle_pid.poll(odom.heading());
-        drivebase.write_volage(-pow, pow, pkt_to_write);
+        //let pow = angle_pid.poll(odom.heading());
+        //drivebase.write_volage(-pow, pow, pkt_to_write);
         //
         //
-        //if let CompState::Auton(_) = pkt.comp_state {
-        /*let out = auton_path.follow(&mut odom, &mut angle_pid, pkt_to_write);
+        //if let CompState::Auton(_) = pkt.comp_state { 
+        
+        let out = auton_path.follow(&mut odom, &mut angle_pid, pkt_to_write);
         match out {
             path::PathOutput::Voltages(v) => drivebase.write_volage(v.x, v.y, pkt_to_write),
             path::PathOutput::LinearAngularVelocity(lr) => {
                 drivebase.write_powers(lr.x, lr.y, pkt_to_write)
             }
-        }*/
+        }if manually_ctrl{
+
+            drivebase.write_powers(controller.ly(), -controller.rx(), pkt_to_write);
+            }
         /*} else {
             drivebase.write_powers(controller.ly(), -controller.rx(), pkt_to_write);
         }*/

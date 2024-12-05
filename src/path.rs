@@ -296,7 +296,7 @@ impl PathSegment for TurnTo {
         match self.end_time {
             Some(end_time) => {
 
-        if end_time.elapsed() > Duration::from_millis(100000) {
+        if end_time.elapsed() > Duration::from_millis(200) {
             log::info!(
                 "Finished segment - TurnTo({}) with heading ({}).",
                 self.target_heading,
