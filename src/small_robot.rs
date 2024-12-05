@@ -219,18 +219,18 @@ fn main() {
                 controller.held(LEFT_TRIGGER_1),
                 controller.held(LEFT_TRIGGER_2),
             ) {
-                (true, false) => pkt_to_write.set_motors[5] = MotorControl::Voltage(-12.0),
-                (false, true) => pkt_to_write.set_motors[5] = MotorControl::Voltage(12.0),
-                _ => pkt_to_write.set_motors[5] = MotorControl::BrakeBrake,
+                (true, false) => pkt_to_write.set_motors[4] = MotorControl::Voltage(12.0),
+                (false, true) => pkt_to_write.set_motors[4] = MotorControl::Voltage(-12.0),
+                _ => pkt_to_write.set_motors[4] = MotorControl::BrakeBrake,
             }
 
             match (
                 controller.held(RIGHT_TRIGGER_1),
                 controller.held(RIGHT_TRIGGER_2),
             ) {
-                (true, false) => pkt_to_write.set_motors[6] = MotorControl::Voltage(-12.0),
-                (false, true) => pkt_to_write.set_motors[6] = MotorControl::Voltage(12.0),
-                _ => pkt_to_write.set_motors[6] = MotorControl::BrakeCoast,
+                (true, false) => pkt_to_write.set_motors[5] = MotorControl::Voltage(12.0),
+                (false, true) => pkt_to_write.set_motors[5] = MotorControl::Voltage(-12.0),
+                _ => pkt_to_write.set_motors[5] = MotorControl::BrakeCoast,
             }
 
             if controller.pressed(B) {
