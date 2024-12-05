@@ -1,7 +1,7 @@
 use robot_serial::protocol::{MotorControl, ToBrain};
 
-use crate::ramsete::Ramsete;
 use crate::modifier_path::TimedSegment;
+use crate::ramsete::Ramsete;
 use crate::{odometry::Odom, pid::Pid, vec::Vec2};
 use std::collections::VecDeque;
 use std::f64::consts::{PI, TAU};
@@ -269,7 +269,10 @@ pub struct TurnTo {
 }
 impl TurnTo {
     pub fn new(target_heading: f64) -> Self {
-        Self { target_heading, end_time: None}
+        Self {
+            target_heading,
+            end_time: None,
+        }
     }
 }
 
@@ -296,21 +299,20 @@ impl PathSegment for TurnTo {
     ) -> Option<Vec<Box<dyn PathSegment + 'a>>> {
         match self.end_time {
             Some(end_time) => {
+                if end_time.elapsed() > Duration::from_millis(200) {
+                    log::info!(
+                        "Finished segment - TurnTo({}) with heading ({}).",
+                        self.target_heading,
+                        odom.heading()
+                    );
+                    return Some(vec![]);
+                }
 
-        if end_time.elapsed() > Duration::from_millis(200) {
-            log::info!(
-                "Finished segment - TurnTo({}) with heading ({}).",
-                self.target_heading,
-                odom.heading()
-            );
-            return Some(vec![]);
+                None
             }
-            
-        None
-        }
 
-        None => None,
-    }
+            None => None,
+        }
     }
 }
 
@@ -363,10 +365,10 @@ pub struct PowerMotors {
 }
 impl PowerMotors {
     pub fn new(motors: Vec<usize>, pow: MotorControl) -> Self {
-        Self { 
-            motors, 
-            pow, 
-            shaking: vec![0]
+        Self {
+            motors,
+            pow,
+            shaking: vec![0],
         }
     }
 }
@@ -424,8 +426,7 @@ impl PathSegment for SwitchController {
     ) -> crate::path::PathOutput {
         crate::path::PathOutput::SwitchToDriver
     }
-    fn abrupt_end(&mut self, _odom: &Odom, pkt: &mut ToBrain) {
-    }
+    fn abrupt_end(&mut self, _odom: &Odom, pkt: &mut ToBrain) {}
     fn end_follow<'a>(
         &mut self,
         _: &crate::odometry::Odom,
@@ -433,7 +434,6 @@ impl PathSegment for SwitchController {
     ) -> Option<Vec<Box<dyn PathSegment + 'a>>> {
         None
     }
-    
 }
 
 fn optimise_target_heading(heading: f64, target: f64) -> f64 {

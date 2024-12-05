@@ -1,6 +1,6 @@
-use std::time::{Duration, Instant};
 use crate::{drivebase::Drivebase, imu::Imu, vec::Vec2};
 use robot_serial::protocol::ToRobot;
+use std::time::{Duration, Instant};
 pub struct Odom {
     start_pos: Vec2,
     start_heading: f64,
