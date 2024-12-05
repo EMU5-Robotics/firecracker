@@ -4,7 +4,7 @@ pub struct Pid {
     pub kp: f64,
     pub ki: f64,
     pub kd: f64,
-    target: f64,
+    pub target: f64,
     ki_integral: f64,
     last_error: f64,
     last_update: Instant,
@@ -35,12 +35,13 @@ impl Pid {
         // clegg integration (avoid integral windup)
         // see (wikipedia.org/wiki/Integral_windup)
         if self.last_error.signum() != error.signum() {
+            log::error!("RESET INTEGRAL");
             self.ki_integral = 0.0;
         }
 
         // bumpless operation see (wikipedia.org/wiki/Proportional-integral-derivative_controller#Bumpless_operation)
         self.ki_integral += self.ki * error * diff_t;
-        self.ki_integral = self.ki_integral.clamp(-1.0, 1.0);
+        self.ki_integral = self.ki_integral.clamp(-0.4, 0.4);
 
         let output = self.kp * error + self.ki_integral + self.kd * (error - self.last_error);
 

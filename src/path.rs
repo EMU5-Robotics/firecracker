@@ -5,7 +5,7 @@ use crate::TimedSegment;
 use crate::{odometry::Odom, pid::Pid, vec::Vec2};
 use std::collections::VecDeque;
 use std::f64::consts::{PI, TAU};
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 #[derive(Debug, Copy, Clone)]
 pub enum PathOutput {
@@ -264,10 +264,11 @@ impl PathSegment for RamsetePath {
 #[derive(Debug)]
 pub struct TurnTo {
     target_heading: f64,
+    end_time: Option<Instant>,
 }
 impl TurnTo {
     pub fn new(target_heading: f64) -> Self {
-        Self { target_heading }
+        Self { target_heading, end_time: None}
     }
 }
 
@@ -282,6 +283,9 @@ impl PathSegment for TurnTo {
     }
     fn follow(&mut self, odom: &Odom, angle_pid: &mut Pid, pkt: &mut ToBrain) -> PathOutput {
         let pow = angle_pid.poll(odom.heading());
+        if (odom.heading() - self.target_heading).abs() > 2f64.to_radians() {
+            self.end_time = Some(Instant::now());
+        }
         PathOutput::Voltages(Vec2::new(-pow, pow))
     }
     fn end_follow<'a>(
@@ -289,15 +293,23 @@ impl PathSegment for TurnTo {
         odom: &Odom,
         pkt: &mut ToBrain,
     ) -> Option<Vec<Box<dyn PathSegment + 'a>>> {
-        if (odom.heading() - self.target_heading).abs() < 2f64.to_radians() {
+        match self.end_time {
+            Some(end_time) => {
+
+        if end_time.elapsed() > Duration::from_millis(100000) {
             log::info!(
                 "Finished segment - TurnTo({}) with heading ({}).",
                 self.target_heading,
                 odom.heading()
             );
             return Some(vec![]);
-        }
+            }
+            
         None
+        }
+
+        None => None,
+    }
     }
 }
 

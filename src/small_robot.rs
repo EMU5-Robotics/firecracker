@@ -89,7 +89,14 @@ fn main() {
     let mut imu = Imu::new(15);
     let mut odom = odometry::Odom::new(Vec2::ZERO, 0.0, &imu, &drivebase);
 
-    let mut angle_pid = pid::Pid::new(0.55, 0.055, 2.2);
+    //let mut angle_pid = pid::Pid::new(0.55, 0.055, 2.2);
+    //0.8, 1.2, 0.0
+    //let mut angle_pid = pid::Pid::new(0.5, 3.5, 0.);
+
+    // for now, the best arguments
+    let mut angle_pid = pid::Pid::new(0.5, 0.8, 0.);
+    let mut pid_test_count = 0;
+
 
     // init time is used to wait for the robot to settl
     let init_time = std::time::Instant::now();
@@ -110,18 +117,28 @@ fn main() {
         odom.update(&imu, &drivebase);
         
         if is_updated {
-            log::info!("{:.2?} {:.2?}", odom.heading(), imu.heading());
+            log::info!("{:.2?} {:.2?} {:.2?}", odom.heading(), imu.heading(), 
+        (90.0f64.to_radians() * pid_test_count as f64 - odom.heading()).to_degrees()
+        );
         }
+
+        if controller.pressed(A) {
+            pid_test_count += 1;
+            angle_pid.set_target(odom.heading() + 90.0f64.to_radians());
+        }
+
+        let pow = angle_pid.poll(odom.heading());
+        drivebase.write_volage(-pow, pow, pkt_to_write);
         //
         //
         //if let CompState::Auton(_) = pkt.comp_state {
-        let out = auton_path.follow(&mut odom, &mut angle_pid, pkt_to_write);
+        /*let out = auton_path.follow(&mut odom, &mut angle_pid, pkt_to_write);
         match out {
             path::PathOutput::Voltages(v) => drivebase.write_volage(v.x, v.y, pkt_to_write),
             path::PathOutput::LinearAngularVelocity(lr) => {
                 drivebase.write_powers(lr.x, lr.y, pkt_to_write)
             }
-        }
+        }*/
         /*} else {
             drivebase.write_powers(controller.ly(), -controller.rx(), pkt_to_write);
         }*/
