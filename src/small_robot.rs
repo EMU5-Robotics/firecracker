@@ -7,7 +7,7 @@ use communication::RobotInfo;
 use imu::Imu;
 use latch::LatchAction;
 use modifier_path::{Nop, TimedSegment, WhileSegment};
-use path::{PowerMotors, Ram, TurnTo};
+use path::{PowerMotors, Ram, SwitchController, TurnTo};
 use robot_serial::protocol::{controller::*, *};
 use vec::Vec2;
 
@@ -51,7 +51,7 @@ fn main() {
     let init_front_latch = path!(
         front_latch_attach.clone(),
         wait_n(Duration::from_secs(1)),
-        front_latch_release.clone(),
+        front_latch_release. clone(),
         wait_n(Duration::from_secs(1)),
     );
 
@@ -59,7 +59,9 @@ fn main() {
 
     let score_two_rings = path!(
         // turn left to align backwards with mobile goal
-        TurnTo::new(FRAC_PI_2),
+        //TurnTo::new(FRAC_PI_2),
+        // turn 90 -> 97
+        path::PowerSide::new(96.0, false),
         back_latch_release.clone(),
         // go backwards to mobile goal
         Ram::new(-0.2, Duration::from_millis(7000)),
@@ -74,7 +76,7 @@ fn main() {
 
     let stage_one = WhileSegment::new(
         path!(get_first_ring, score_two_rings),
-        path!(PowerMotors::new(vec![5], MotorControl::Voltage(-12.0))),
+        path!(PowerMotors::new(vec![5], MotorControl::Voltage(-5.0))),
         true,
     );
 
@@ -144,25 +146,50 @@ fn main() {
         ram_to_ladder,
     );
 
-    let mut auton_path = path!(
+    let mut auton_path = path!( 
+        // init the front latch
+        
+        /* 
+        init_front_latch,
+        WhileSegment::new(
+            /*path!(
+            Ram::new(0.5, Duration::from_millis(560)),*/
+            //TurnTo::new(PI),
+            path!(path::PowerSide { start: std::time::Instant::now() }),
+            // turn left to align backwards with mobile goal
+            /*back_latch_release.clone(),
+            // go backwards to mobile goal
+            Ram::new(-0.2, Duration::from_millis(3000)),
+            // latch onto goal
+            back_latch_attach.clone(),
+            // score 2x ringsTimedSegment::new(
+            PowerMotors::new(vec![6], MotorControl::Voltage(-12.0)),
+        ),*/
+        path!(PowerMotors::new(vec![5], MotorControl::Voltage(-12.0))), true),
+    )   
+
+        */
+
+        
         // init the front latch
         init_front_latch,
         // auton stage one
         // get first ring and score two rings
         stage_one,
+        //SwitchController {},
         // auton stage two
         // turn to last ring and get last ring
-        stage_two,
+        //stage_two,
         // option b
         // turn to wall stake, ram into wall stake
         // score ring, turn to ladder, ram into ladder
-        option_b,
+        //option_b,
         // option c
         // turn to new point, ram into new point, turn to new point 2
         // score last ring, turn to ladder, ram into ladder
-        option_c,
+        //option_c,
     );
-    let mut imu = Imu::new(4);
+    let mut imu = Imu::new(15);
     let mut odom = odometry::Odom::new(Vec2::ZERO, 0.0, &imu, &drivebase);
 
     // for now, the best arguments
@@ -184,6 +211,11 @@ fn main() {
             continue;
         }
 
+
+        if _is_updated {
+            log::info!("imu : {:?}", pkt.imu_state);
+        }
+
         imu.update(&pkt);
         drivebase.update(&pkt);
         odom.update(&imu, &drivebase, &pkt);
@@ -203,7 +235,7 @@ fn main() {
             }
         }
 
-        if finished || pkt.comp_state == CompState::Driver {
+        if pkt.comp_state == CompState::Driver {
             if controller.pressed(DOWN) {
                 reversed = !reversed;
             }

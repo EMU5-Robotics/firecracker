@@ -317,6 +317,44 @@ impl PathSegment for TurnTo {
 }
 
 #[derive(Debug, Clone)]
+pub struct PowerSide {
+        pub mul: f64,
+        pub neg: bool,
+        pub start: Instant,
+}
+impl PowerSide {
+pub fn new(turn_angle: f64, neg: bool) -> Self {
+    Self { mul: turn_angle / 180.0, neg, start: Instant::now() }
+}
+}
+impl PathSegment for PowerSide {
+    fn finished_transform(&self) -> bool {
+        true
+    }
+    fn start(&mut self, odom: &Odom, angle_pid: &mut Pid, pkt: &mut ToBrain) {
+        self.start = Instant::now();
+    }
+    fn follow(&mut self, odom: &Odom, angle_pid: &mut Pid, pkt: &mut ToBrain) -> PathOutput {
+        if self.neg {
+            PathOutput::Voltages(Vec2::new(0.2, -0.2))
+        } else {
+            PathOutput::Voltages(Vec2::new(-0.2, 0.2))
+        }
+        
+    }
+    fn end_follow<'a>(
+        &mut self,
+        odom: &Odom,
+        pkt: &mut ToBrain,
+    ) -> Option<Vec<Box<dyn PathSegment + 'a>>> {
+        if self.start.elapsed() > Duration::from_secs_f64(2.815 * self.mul) {
+            return Some(Vec::new());
+        }
+        None
+    }
+}
+
+#[derive(Debug, Clone)]
 pub struct Ram {
     pow: f64,
     dur: std::time::Duration,
